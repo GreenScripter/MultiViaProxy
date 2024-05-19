@@ -265,6 +265,10 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
     public Account getAccount() {
         return this.account;
     }
+    
+    public Account getAccountFromUUID(String uuid) {
+		return ViaProxy.getSaveManager().accountsSave.getAccounts().stream().filter(a -> a.getUUID().toString().replace("-", "").equalsIgnoreCase(uuid.replace("-", ""))).findAny().orElse(null);
+    }
 
     public void setAccount(final Account account) {
         this.account = account;

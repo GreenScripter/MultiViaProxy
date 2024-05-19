@@ -17,10 +17,22 @@
  */
 package net.raphimc.viaproxy.proxy.client2proxy;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+
+import java.net.ConnectException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.nio.channels.UnresolvedAddressException;
+
 import com.google.common.collect.Lists;
 import com.viaversion.viabackwards.protocol.v1_20_5to1_20_3.storage.CookieStorage;
 import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
+
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -38,29 +50,37 @@ import net.raphimc.viaproxy.plugins.events.Proxy2ServerHandlerCreationEvent;
 import net.raphimc.viaproxy.plugins.events.ProxySessionCreationEvent;
 import net.raphimc.viaproxy.protocoltranslator.ProtocolTranslator;
 import net.raphimc.viaproxy.protocoltranslator.viaproxy.ViaProxyConfig;
-import net.raphimc.viaproxy.proxy.packethandler.*;
+import net.raphimc.viaproxy.proxy.packethandler.BrandCustomPayloadPacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.ChatSignaturePacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.CompressionPacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.ConfigurationPacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.LoginPacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.OpenAuthModPacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.PacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.ResourcePackPacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.SimpleVoiceChatPacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.StatusPacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.TransferPacketHandler;
+import net.raphimc.viaproxy.proxy.packethandler.UnexpectedPacketHandler;
 import net.raphimc.viaproxy.proxy.proxy2server.Proxy2ServerChannelInitializer;
 import net.raphimc.viaproxy.proxy.proxy2server.Proxy2ServerHandler;
 import net.raphimc.viaproxy.proxy.session.BedrockProxyConnection;
 import net.raphimc.viaproxy.proxy.session.DummyProxyConnection;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
 import net.raphimc.viaproxy.proxy.session.UserOptions;
-import net.raphimc.viaproxy.proxy.util.*;
+import net.raphimc.viaproxy.proxy.util.ChannelUtil;
+import net.raphimc.viaproxy.proxy.util.CloseAndReturn;
+import net.raphimc.viaproxy.proxy.util.ExceptionUtil;
+import net.raphimc.viaproxy.proxy.util.HAProxyUtil;
+import net.raphimc.viaproxy.proxy.util.ThrowingChannelFutureListener;
+import net.raphimc.viaproxy.proxy.util.TransferDataHolder;
+import net.raphimc.viaproxy.saves.impl.accounts.Account;
 import net.raphimc.viaproxy.saves.impl.accounts.ClassicAccount;
 import net.raphimc.viaproxy.util.AddressUtil;
 import net.raphimc.viaproxy.util.ArrayHelper;
 import net.raphimc.viaproxy.util.ProtocolVersionDetector;
 import net.raphimc.viaproxy.util.ProtocolVersionUtil;
 import net.raphimc.viaproxy.util.logging.Logger;
-
-import java.net.ConnectException;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.nio.channels.UnresolvedAddressException;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
 
 public class Client2ProxyHandler extends SimpleChannelInboundHandler<IPacket> {
 
@@ -180,7 +200,17 @@ public class Client2ProxyHandler extends SimpleChannelInboundHandler<IPacket> {
         serverAddress = preConnectEvent.getServerAddress();
         serverVersion = preConnectEvent.getServerVersion();
 
-        final UserOptions userOptions = new UserOptions(classicMpPass, ViaProxy.getConfig().getAccount());
+        Account account = ViaProxy.getConfig().getAccount();
+        System.out.println(Arrays.toString(handshakeParts));
+		if (handshakeParts.length > 2) {
+			Account temp = ViaProxy.getConfig().getAccountFromUUID(handshakeParts[2]);
+			System.out.println(temp);
+			if (temp != null){
+				account = temp;
+			}
+		}
+        
+        final UserOptions userOptions = new UserOptions(classicMpPass, account);
         ChannelUtil.disableAutoRead(this.proxyConnection.getC2P());
 
         if (packet.intendedState.getConnectionState() == ConnectionState.LOGIN && serverVersion.equals(ProtocolTranslator.AUTO_DETECT_PROTOCOL)) {
