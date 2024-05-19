@@ -1,3 +1,6 @@
+# MultiViaProxy
+Proxy for authenticating as multiple different users using BungeeCord's protocol.
+
 # ViaProxy
 Standalone proxy which allows players to join EVERY Minecraft server version (Classic, Alpha, Beta, Release, Bedrock)
 
