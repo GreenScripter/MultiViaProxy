@@ -71,5 +71,7 @@ wildcard-domain-handling: "none"
 # Enables handling and rewriting of Simple Voice Chat mod packets.
 simple-voice-chat-support: false
 #
+# Enables automatic microsoft token refreshing.
+automatic-token-refresh: false
 # Configuration version. Do not change this.
 config-version: 1

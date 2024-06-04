@@ -32,6 +32,7 @@ import net.raphimc.viaproxy.plugins.events.PostOptionsParseEvent;
 import net.raphimc.viaproxy.plugins.events.PreOptionsParseEvent;
 import net.raphimc.viaproxy.protocoltranslator.ProtocolTranslator;
 import net.raphimc.viaproxy.saves.impl.accounts.Account;
+import net.raphimc.viaproxy.saves.impl.accounts.MicrosoftAccount;
 import net.raphimc.viaproxy.util.AddressUtil;
 import net.raphimc.viaproxy.util.logging.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +73,7 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
     private final OptionSpec<String> optionResourcePackUrl;
     private final OptionSpec<WildcardDomainHandling> optionWildcardDomainHandling;
     private final OptionSpec<Boolean> optionSimpleVoiceChatSupport;
+    private final OptionSpec<Boolean> optionAutomaticTokenRefresh;
 
     private SocketAddress bindAddress = AddressUtil.parse("0.0.0.0:25568", null);
     private SocketAddress targetAddress = AddressUtil.parse("127.0.0.1:25565", null);
@@ -92,6 +94,7 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
     private String resourcePackUrl = "";
     private WildcardDomainHandling wildcardDomainHandling = WildcardDomainHandling.NONE;
     private boolean simpleVoiceChatSupport = false;
+    private boolean automaticTokenRefresh = false;
 
     public ViaProxyConfig(final File configFile) {
         super(configFile, LOGGER);
@@ -117,7 +120,45 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
         this.optionResourcePackUrl = this.optionParser.accepts("resource-pack-url").withRequiredArg().ofType(String.class).defaultsTo(this.resourcePackUrl);
         this.optionWildcardDomainHandling = this.optionParser.accepts("wildcard-domain-handling").withRequiredArg().ofType(WildcardDomainHandling.class).defaultsTo(this.wildcardDomainHandling);
         this.optionSimpleVoiceChatSupport = this.optionParser.accepts("simple-voice-chat-support").withRequiredArg().ofType(Boolean.class).defaultsTo(this.simpleVoiceChatSupport);
-    }
+        this.optionAutomaticTokenRefresh = this.optionParser.accepts("automatic-token-refresh").withRequiredArg().ofType(Boolean.class).defaultsTo(this.automaticTokenRefresh);
+		Thread refresh = new Thread(() -> {
+			final long delay = 10 * 60 * 1000;
+			while (true) {
+				try {
+					Thread.sleep(delay);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				if (shouldAutomaticallyRefreshTokens()) {
+					MicrosoftAccount acc = ViaProxy.getSaveManager().accountsSave.getAccounts().stream()//
+							.filter(a -> a instanceof MicrosoftAccount)//
+							.map(a -> (MicrosoftAccount) a)//
+							.min((a1, a2) -> (int) (a1.getMcProfile().getMcToken().getExpireTimeMs() - a2.getMcProfile().getMcToken().getExpireTimeMs()))//
+							.orElse(null);
+					if (acc != null) {
+						long targetTime = acc.getMcProfile().getMcToken().getExpireTimeMs();
+						System.out.println("Next token refresh " + acc.getMcProfile().getName() + " in " + (targetTime - System.currentTimeMillis()) + " ms. (" +//
+								Math.max(0, (targetTime - System.currentTimeMillis())) + " ms.)");
+						if ((targetTime - System.currentTimeMillis()) < delay) {
+							try {
+								Thread.sleep(Math.max(0, (targetTime - System.currentTimeMillis())));
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+							try {
+								acc.refresh();
+								ViaProxy.getSaveManager().save();
+							} catch (Throwable e) {
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+			}
+		});
+		refresh.setName("Account Token Refresh Thread");
+		refresh.start();
+	}
 
     @Override
     public void reload() {
@@ -149,6 +190,7 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
         this.resourcePackUrl = this.getString("resource-pack-url", this.resourcePackUrl);
         this.wildcardDomainHandling = WildcardDomainHandling.byName(this.getString("wildcard-domain-handling", this.wildcardDomainHandling.name()));
         this.simpleVoiceChatSupport = this.getBoolean("simple-voice-chat-support", this.simpleVoiceChatSupport);
+        this.automaticTokenRefresh = this.getBoolean("automatic-token-refresh", this.automaticTokenRefresh);
     }
 
     public void loadFromArguments(final String[] args) throws IOException {
@@ -185,6 +227,7 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
             this.resourcePackUrl = options.valueOf(this.optionResourcePackUrl);
             this.wildcardDomainHandling = options.valueOf(this.optionWildcardDomainHandling);
             this.simpleVoiceChatSupport = options.valueOf(this.optionSimpleVoiceChatSupport);
+            this.automaticTokenRefresh = options.valueOf(this.optionAutomaticTokenRefresh);
             ViaProxy.EVENT_MANAGER.call(new PostOptionsParseEvent(options));
             return;
         } catch (OptionException e) {
@@ -394,6 +437,15 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
     public void setSimpleVoiceChatSupport(final boolean simpleVoiceChatSupport) {
         this.simpleVoiceChatSupport = simpleVoiceChatSupport;
         this.set("simple-voice-chat-support", simpleVoiceChatSupport);
+    }
+
+    public boolean shouldAutomaticallyRefreshTokens() {
+        return this.automaticTokenRefresh;
+    }
+
+    public void setAutomaticTokenRefresh(final boolean automaticTokenRefresh) {
+        this.automaticTokenRefresh = automaticTokenRefresh;
+        this.set("automatic-token-refresh", automaticTokenRefresh);
     }
 
     private void checkTargetVersion() {
