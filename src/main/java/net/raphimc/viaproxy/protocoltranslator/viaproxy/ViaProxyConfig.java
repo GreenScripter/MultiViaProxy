@@ -68,12 +68,14 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
     private final OptionSpec<Integer> optionCompressionThreshold;
     private final OptionSpec<Boolean> optionAllowBetaPinging;
     private final OptionSpec<Boolean> optionIgnoreProtocolTranslationErrors;
+    private final OptionSpec<Boolean> optionSuppressClientProtocolErrors;
     private final OptionSpec<Boolean> optionAllowLegacyClientPassthrough;
     private final OptionSpec<String> optionCustomMotd;
     private final OptionSpec<String> optionResourcePackUrl;
     private final OptionSpec<WildcardDomainHandling> optionWildcardDomainHandling;
     private final OptionSpec<Boolean> optionSimpleVoiceChatSupport;
     private final OptionSpec<Boolean> optionAutomaticTokenRefresh;
+    private final OptionSpec<Boolean> optionFakeAcceptResourcePacks;
 
     private SocketAddress bindAddress = AddressUtil.parse("0.0.0.0:25568", null);
     private SocketAddress targetAddress = AddressUtil.parse("127.0.0.1:25565", null);
@@ -89,12 +91,14 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
     private int compressionThreshold = 256;
     private boolean allowBetaPinging = false;
     private boolean ignoreProtocolTranslationErrors = false;
+    private boolean suppressClientProtocolErrors = false;
     private boolean allowLegacyClientPassthrough = false;
     private String customMotd = "";
     private String resourcePackUrl = "";
     private WildcardDomainHandling wildcardDomainHandling = WildcardDomainHandling.NONE;
     private boolean simpleVoiceChatSupport = false;
     private boolean automaticTokenRefresh = false;
+    private boolean fakeAcceptResourcePacks = false;
 
     public ViaProxyConfig(final File configFile) {
         super(configFile, LOGGER);
@@ -115,6 +119,7 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
         this.optionCompressionThreshold = this.optionParser.accepts("compression-threshold").withRequiredArg().ofType(Integer.class).defaultsTo(this.compressionThreshold);
         this.optionAllowBetaPinging = this.optionParser.accepts("allow-beta-pinging").withRequiredArg().ofType(Boolean.class).defaultsTo(this.allowBetaPinging);
         this.optionIgnoreProtocolTranslationErrors = this.optionParser.accepts("ignore-protocol-translation-errors").withRequiredArg().ofType(Boolean.class).defaultsTo(this.ignoreProtocolTranslationErrors);
+        this.optionSuppressClientProtocolErrors = this.optionParser.accepts("suppress-client-protocol-errors").withRequiredArg().ofType(Boolean.class).defaultsTo(this.suppressClientProtocolErrors);
         this.optionAllowLegacyClientPassthrough = this.optionParser.accepts("allow-legacy-client-passthrough").withRequiredArg().ofType(Boolean.class).defaultsTo(this.allowLegacyClientPassthrough);
         this.optionCustomMotd = this.optionParser.accepts("custom-motd").withRequiredArg().ofType(String.class).defaultsTo(this.customMotd);
         this.optionResourcePackUrl = this.optionParser.accepts("resource-pack-url").withRequiredArg().ofType(String.class).defaultsTo(this.resourcePackUrl);
@@ -158,7 +163,8 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
 		});
 		refresh.setName("Account Token Refresh Thread");
 		refresh.start();
-	}
+        this.optionFakeAcceptResourcePacks = this.optionParser.accepts("fake-accept-resource-packs").withRequiredArg().ofType(Boolean.class).defaultsTo(this.fakeAcceptResourcePacks);
+    }
 
     @Override
     public void reload() {
@@ -185,12 +191,14 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
         this.compressionThreshold = this.getInt("compression-threshold", this.compressionThreshold);
         this.allowBetaPinging = this.getBoolean("allow-beta-pinging", this.allowBetaPinging);
         this.ignoreProtocolTranslationErrors = this.getBoolean("ignore-protocol-translation-errors", this.ignoreProtocolTranslationErrors);
+        this.suppressClientProtocolErrors = this.getBoolean("suppress-client-protocol-errors", this.suppressClientProtocolErrors);
         this.allowLegacyClientPassthrough = this.getBoolean("allow-legacy-client-passthrough", this.allowLegacyClientPassthrough);
         this.customMotd = this.getString("custom-motd", this.customMotd);
         this.resourcePackUrl = this.getString("resource-pack-url", this.resourcePackUrl);
         this.wildcardDomainHandling = WildcardDomainHandling.byName(this.getString("wildcard-domain-handling", this.wildcardDomainHandling.name()));
         this.simpleVoiceChatSupport = this.getBoolean("simple-voice-chat-support", this.simpleVoiceChatSupport);
         this.automaticTokenRefresh = this.getBoolean("automatic-token-refresh", this.automaticTokenRefresh);
+        this.fakeAcceptResourcePacks = this.getBoolean("fake-accept-resource-packs", this.fakeAcceptResourcePacks);
     }
 
     public void loadFromArguments(final String[] args) throws IOException {
@@ -222,12 +230,14 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
             this.compressionThreshold = options.valueOf(this.optionCompressionThreshold);
             this.allowBetaPinging = options.valueOf(this.optionAllowBetaPinging);
             this.ignoreProtocolTranslationErrors = options.valueOf(this.optionIgnoreProtocolTranslationErrors);
+            this.suppressClientProtocolErrors = options.valueOf(this.optionSuppressClientProtocolErrors);
             this.allowLegacyClientPassthrough = options.valueOf(this.optionAllowLegacyClientPassthrough);
             this.customMotd = options.valueOf(this.optionCustomMotd);
             this.resourcePackUrl = options.valueOf(this.optionResourcePackUrl);
             this.wildcardDomainHandling = options.valueOf(this.optionWildcardDomainHandling);
             this.simpleVoiceChatSupport = options.valueOf(this.optionSimpleVoiceChatSupport);
             this.automaticTokenRefresh = options.valueOf(this.optionAutomaticTokenRefresh);
+            this.fakeAcceptResourcePacks = options.valueOf(this.optionFakeAcceptResourcePacks);
             ViaProxy.EVENT_MANAGER.call(new PostOptionsParseEvent(options));
             return;
         } catch (OptionException e) {
@@ -394,6 +404,15 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
         this.set("ignore-protocol-translation-errors", ignoreProtocolTranslationErrors);
     }
 
+    public boolean shouldSuppressClientProtocolErrors() {
+        return this.suppressClientProtocolErrors;
+    }
+
+    public void setSuppressClientProtocolErrors(final boolean suppressClientProtocolErrors) {
+        this.suppressClientProtocolErrors = suppressClientProtocolErrors;
+        this.set("suppress-client-protocol-errors", suppressClientProtocolErrors);
+    }
+
     public boolean shouldAllowLegacyClientPassthrough() {
         return this.allowLegacyClientPassthrough;
     }
@@ -446,6 +465,15 @@ public class ViaProxyConfig extends Config implements com.viaversion.viaversion.
     public void setAutomaticTokenRefresh(final boolean automaticTokenRefresh) {
         this.automaticTokenRefresh = automaticTokenRefresh;
         this.set("automatic-token-refresh", automaticTokenRefresh);
+    }
+    
+    public boolean shouldFakeAcceptResourcePacks() {
+        return this.fakeAcceptResourcePacks;
+    }
+
+    public void setFakeAcceptResourcePacks(final boolean fakeAcceptResourcePacks) {
+        this.fakeAcceptResourcePacks = fakeAcceptResourcePacks;
+        this.set("fake-accept-resource-packs", fakeAcceptResourcePacks);
     }
 
     private void checkTargetVersion() {

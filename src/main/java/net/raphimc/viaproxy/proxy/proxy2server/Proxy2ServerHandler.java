@@ -44,7 +44,7 @@ public class Proxy2ServerHandler extends SimpleChannelInboundHandler<IPacket> {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
 
-        Logger.u_info("disconnect", this.proxyConnection.getC2P().remoteAddress(), this.proxyConnection.getGameProfile(), "Connection closed");
+        Logger.u_info("disconnect", this.proxyConnection, "Connection closed");
         try {
             this.proxyConnection.getC2P().close();
         } catch (Throwable ignored) {
@@ -66,7 +66,7 @@ public class Proxy2ServerHandler extends SimpleChannelInboundHandler<IPacket> {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        ExceptionUtil.handleNettyException(ctx, cause, this.proxyConnection);
+        ExceptionUtil.handleNettyException(ctx, cause, this.proxyConnection, false);
     }
 
 }

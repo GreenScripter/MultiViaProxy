@@ -52,6 +52,10 @@ allow-beta-pinging: false
 # This may cause issues depending on the type of packet which failed to translate.
 ignore-protocol-translation-errors: false
 #
+# Enabling this will suppress client protocol errors to prevent lag when ViaProxy is getting spammed with invalid packets.
+# This may cause issues with debugging client connection issues because no error messages will be printed.
+suppress-client-protocol-errors: false
+#
 # Allow <= 1.6.4 clients to connect through ViaProxy to the target server. (No protocol translation or packet handling)
 allow-legacy-client-passthrough: false
 #
@@ -65,7 +69,7 @@ resource-pack-url: ""
 # Allows clients to specify a target server and version using wildcard domains.
 # none: No wildcard domain handling.
 # public: Public wildcard domain handling. Intended for usage by external clients. (Example: address_port_version.viaproxy.127.0.0.1.nip.io)
-# internal: Internal wildcard domain handling. Intended for local usage by custom clients. (Example: address:port\7version\7classic-mppass)
+# internal: Internal wildcard domain handling. Intended for local usage by custom clients. (Example: original-handshake-address\7address:port\7version\7classic-mppass)
 wildcard-domain-handling: "none"
 #
 # Enables handling and rewriting of Simple Voice Chat mod packets.
@@ -73,5 +77,9 @@ simple-voice-chat-support: false
 #
 # Enables automatic microsoft token refreshing.
 automatic-token-refresh: false
+# Accepts resource packs from the server without showing a prompt to the client.
+# This is required for servers that require a resource pack, but the client can't load it due to version differences.
+fake-accept-resource-packs: false
+#
 # Configuration version. Do not change this.
 config-version: 1

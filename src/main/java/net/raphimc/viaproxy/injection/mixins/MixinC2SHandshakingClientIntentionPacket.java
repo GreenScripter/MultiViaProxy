@@ -15,17 +15,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package net.raphimc.viaproxy.protocoltranslator.providers;
+package net.raphimc.viaproxy.injection.mixins;
 
-import com.viaversion.viaversion.api.connection.UserConnection;
-import com.viaversion.viaversion.api.minecraft.item.Item;
-import com.viaversion.viaversion.protocols.v1_8to1_9.provider.HandItemProvider;
+import net.raphimc.netminecraft.packet.impl.handshaking.C2SHandshakingClientIntentionPacket;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
 
-public class ViaProxyHandItemProvider extends HandItemProvider {
+@Mixin(C2SHandshakingClientIntentionPacket.class)
+public abstract class MixinC2SHandshakingClientIntentionPacket {
 
-    @Override
-    public Item getHandItem(final UserConnection info) {
-        return null;
+    @ModifyConstant(method = "read", constant = @Constant(intValue = 255))
+    private int allowLargerHostnames(int constant) {
+        return Short.MAX_VALUE;
     }
 
 }

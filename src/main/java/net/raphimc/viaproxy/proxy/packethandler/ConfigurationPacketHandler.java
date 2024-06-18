@@ -22,9 +22,9 @@ import net.raphimc.netminecraft.constants.ConnectionState;
 import net.raphimc.netminecraft.constants.MCPackets;
 import net.raphimc.netminecraft.packet.IPacket;
 import net.raphimc.netminecraft.packet.UnknownPacket;
-import net.raphimc.netminecraft.packet.impl.configuration.C2SConfigFinishConfiguration1_20_2;
-import net.raphimc.netminecraft.packet.impl.configuration.S2CConfigFinishConfiguration1_20_2;
-import net.raphimc.netminecraft.packet.impl.login.C2SLoginStartConfiguration1_20_2;
+import net.raphimc.netminecraft.packet.impl.configuration.C2SConfigFinishConfigurationPacket;
+import net.raphimc.netminecraft.packet.impl.configuration.S2CConfigFinishConfigurationPacket;
+import net.raphimc.netminecraft.packet.impl.login.C2SLoginAcknowledgedPacket;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
 import net.raphimc.viaproxy.proxy.util.ChannelUtil;
 import net.raphimc.viaproxy.util.logging.Logger;
@@ -50,13 +50,13 @@ public class ConfigurationPacketHandler extends PacketHandler {
                 this.proxyConnection.setC2pConnectionState(ConnectionState.CONFIGURATION);
                 listeners.add(f -> {
                     if (f.isSuccess()) {
-                        Logger.u_info("session", this.proxyConnection.getC2P().remoteAddress(), this.proxyConnection.getGameProfile(), "Switching to CONFIGURATION state");
+                        Logger.u_info("session", this.proxyConnection, "Switching to CONFIGURATION state");
                         this.proxyConnection.setP2sConnectionState(ConnectionState.CONFIGURATION);
                         ChannelUtil.restoreAutoRead(this.proxyConnection.getChannel());
                     }
                 });
             }
-        } else if (packet instanceof C2SLoginStartConfiguration1_20_2) {
+        } else if (packet instanceof C2SLoginAcknowledgedPacket) {
             this.proxyConnection.setC2pConnectionState(ConnectionState.CONFIGURATION);
             listeners.add(f -> {
                 if (f.isSuccess()) {
@@ -64,11 +64,11 @@ public class ConfigurationPacketHandler extends PacketHandler {
                     ChannelUtil.restoreAutoRead(this.proxyConnection.getChannel());
                 }
             });
-        } else if (packet instanceof C2SConfigFinishConfiguration1_20_2) {
+        } else if (packet instanceof C2SConfigFinishConfigurationPacket) {
             this.proxyConnection.setC2pConnectionState(ConnectionState.PLAY);
             listeners.add(f -> {
                 if (f.isSuccess()) {
-                    Logger.u_info("session", this.proxyConnection.getC2P().remoteAddress(), this.proxyConnection.getGameProfile(), "Configuration finished! Switching to PLAY state");
+                    Logger.u_info("session", this.proxyConnection, "Configuration finished! Switching to PLAY state");
                     this.proxyConnection.setP2sConnectionState(ConnectionState.PLAY);
                     ChannelUtil.restoreAutoRead(this.proxyConnection.getChannel());
                 }
@@ -84,7 +84,7 @@ public class ConfigurationPacketHandler extends PacketHandler {
             if (unknownPacket.packetId == this.startConfigurationId) {
                 ChannelUtil.disableAutoRead(this.proxyConnection.getChannel());
             }
-        } else if (packet instanceof S2CConfigFinishConfiguration1_20_2) {
+        } else if (packet instanceof S2CConfigFinishConfigurationPacket) {
             ChannelUtil.disableAutoRead(this.proxyConnection.getChannel());
         }
 

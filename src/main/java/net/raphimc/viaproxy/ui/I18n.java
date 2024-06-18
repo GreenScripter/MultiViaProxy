@@ -25,11 +25,12 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class I18n {
 
     private static final String DEFAULT_LOCALE = "en_US";
-    private static final Map<String, Properties> LOCALES = new HashMap<>();
+    private static Map<String, Properties> LOCALES = new LinkedHashMap<>();
     private static String currentLocale;
 
     static {
@@ -46,6 +47,9 @@ public class I18n {
         } catch (Throwable e) {
             throw new RuntimeException("Failed to load translations", e);
         }
+        LOCALES = LOCALES.entrySet().stream()
+                .sorted(Comparator.comparing(e -> e.getValue().getProperty("language.name")))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldValue, newValue) -> newValue, LinkedHashMap::new));
 
         currentLocale = ViaProxy.getSaveManager().uiSave.get("locale");
         if (currentLocale == null || !LOCALES.containsKey(currentLocale)) {
