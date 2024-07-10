@@ -41,7 +41,7 @@ import java.util.Map;
 
 public class PluginManager {
 
-    public static final File PLUGINS_DIR = new File("plugins");
+    public static final File PLUGINS_DIR = new File(ViaProxy.getCwd(), "plugins");
 
     private final Yaml yaml = new Yaml();
     private final IClassProvider rootClassProvider = new GuavaClassPathProvider();
@@ -116,7 +116,7 @@ public class PluginManager {
         if (!yaml.containsKey("version")) throw new IllegalStateException("Plugin '" + file.getName() + "' does not have a version attribute in the viaproxy.yml");
         if (!yaml.containsKey("main")) throw new IllegalStateException("Plugin '" + file.getName() + "' does not have a main attribute in the viaproxy.yml");
         final Semver minVersion = new Semver(yaml.getOrDefault("min-version", "0.0.0").toString());
-        if (!ViaProxy.VERSION.equals("${version}") && minVersion.isGreaterThan(ViaProxy.VERSION.replace("-SNAPSHOT", ""))) {
+        if (!ViaProxy.VERSION.startsWith("${") && minVersion.isGreaterThan(ViaProxy.VERSION.replace("-SNAPSHOT", ""))) {
             throw new IllegalStateException("Plugin '" + file.getName() + "' requires a newer version of ViaProxy (v" + minVersion + ")");
         }
 

@@ -9,16 +9,16 @@ Using it is very simple, just run the jar file, and it will start a user interfa
 For a full user guide go to the [Usage for Players](#usage-for-players-gui) section or the [Usage for Server Owners](#usage-for-server-owners-config) section.
 
 ## Supported Server versions
-- Release (1.0.0 - 1.20.6)
+- Release (1.0.0 - 1.21)
 - Beta (b1.0 - b1.8.1)
 - Alpha (a1.0.15 - a1.2.6)
 - Classic (c0.0.15 - c0.30 including [CPE](https://wiki.vg/Classic_Protocol_Extension))
 - April Fools (3D Shareware, 20w14infinite)
 - Combat Snapshots (Combat Test 8c)
-- Bedrock Edition 1.20.80 ([Some features are missing](https://github.com/RaphiMC/ViaBedrock#features))
+- Bedrock Edition 1.21.0 ([Some features are missing](https://github.com/RaphiMC/ViaBedrock#features))
 
 ## Supported Client versions
-- Release (1.7.2 - 1.20.6)
+- Release (1.7.2 - 1.21)
 - Bedrock Edition (Needs the [Geyser plugin](https://geysermc.org/download))
 - Classic, Alpha, Beta, Release 1.0 - 1.6.4 (Only passthrough)
 
@@ -34,6 +34,15 @@ ViaProxy supports joining to any of the listed server version from any of the li
 ## Releases
 ### Executable Jar File
 If you want the executable jar file you can download a stable release from [GitHub Releases](https://github.com/ViaVersion/ViaProxy/releases/latest) or the latest dev version from [GitHub Actions](https://github.com/RaphiMC/ViaProxy/actions/workflows/build.yml) or the [ViaVersion Jenkins](https://ci.viaversion.com/view/All/job/ViaProxy/).
+
+### Docker Image
+ViaProxy docker images can be found on [GitHub Packages](https://github.com/ViaVersion/ViaProxy/pkgs/container/viaproxy).
+
+To run the latest version of ViaProxy you can use the following command:
+```bash
+docker run -it -v /path/to/run:/app/run -p 25568:25568 ghcr.io/viaversion/viaproxy:latest
+```
+where ``/path/to/run`` is the path where the ViaProxy data should be stored and ``25568`` is the port ViaProxy should listen on.
 
 ### Gradle/Maven
 To use ViaProxy with Gradle/Maven you can use the ViaVersion maven server:
@@ -118,8 +127,8 @@ If you plan to make a large scale changes, please open an issue first or join my
 
 ### Translations
 If you want to help translating ViaProxy you can do so by creating a pull request with your language file.
-The language files are located in the [language folder](/src/main/resources/assets/language).
-You can find the guidelines for creating a language file in the [en_US](/src/main/resources/assets/language/en_US.properties) language file.
+The language files are located in the [language folder](/src/main/resources/assets/viaproxy/language).
+You can find the guidelines for creating a language file in the [en_US](/src/main/resources/assets/viaproxy/language/en_US.properties) language file.
 
 ## Contact
 If you encounter any issues, please report them on the
