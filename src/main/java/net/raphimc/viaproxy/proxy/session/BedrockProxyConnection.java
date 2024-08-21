@@ -28,6 +28,7 @@ import net.raphimc.netminecraft.util.ChannelType;
 import net.raphimc.viabedrock.protocol.data.ProtocolConstants;
 import net.raphimc.vialoader.netty.VLPipeline;
 import net.raphimc.vialoader.netty.viabedrock.PingEncapsulationCodec;
+import net.raphimc.viaproxy.ViaProxy;
 import org.cloudburstmc.netty.channel.raknet.RakChannelFactory;
 import org.cloudburstmc.netty.channel.raknet.config.RakChannelOption;
 
@@ -44,25 +45,31 @@ public class BedrockProxyConnection extends ProxyConnection {
     }
 
     @Override
-    public void initialize(final ChannelType channelType, final Bootstrap bootstrap) {
+    public void initialize(ChannelType channelType, final Bootstrap bootstrap) {
         if (!DatagramChannel.class.isAssignableFrom(channelType.udpClientChannelClass())) {
             throw new IllegalArgumentException("Channel type must be a DatagramChannel");
         }
+        if (channelType == ChannelType.KQUEUE) channelType = ChannelType.NIO; // KQueue doesn't work for Bedrock for some reason
         final Class<? extends DatagramChannel> channelClass = (Class<? extends DatagramChannel>) channelType.udpClientChannelClass();
 
         bootstrap
                 .group(channelType.clientEventLoopGroup().get())
                 .channelFactory(RakChannelFactory.client(channelClass))
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 4_000)
-                .option(ChannelOption.IP_TOS, 0x18)
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, ViaProxy.getConfig().getConnectTimeout())
                 .option(RakChannelOption.RAK_PROTOCOL_VERSION, ProtocolConstants.BEDROCK_RAKNET_PROTOCOL_VERSION)
-                .option(RakChannelOption.RAK_CONNECT_TIMEOUT, 4_000L)
+                .option(RakChannelOption.RAK_COMPATIBILITY_MODE, true)
+                .option(RakChannelOption.RAK_CLIENT_INTERNAL_ADDRESSES, 20)
+                .option(RakChannelOption.RAK_CONNECT_TIMEOUT, (long) ViaProxy.getConfig().getConnectTimeout())
                 .option(RakChannelOption.RAK_SESSION_TIMEOUT, 30_000L)
                 .option(RakChannelOption.RAK_GUID, ThreadLocalRandom.current().nextLong())
                 .attr(ProxyConnection.PROXY_CONNECTION_ATTRIBUTE_KEY, this)
                 .handler(this.channelInitializerSupplier.apply(this.handlerSupplier));
 
         this.channelFuture = bootstrap.register().syncUninterruptibly();
+
+        /*if (this.getChannel().config().setOption(RakChannelOption.RAK_IP_DONT_FRAGMENT, true)) {
+            this.getChannel().config().setOption(RakChannelOption.RAK_MTU_SIZES, new Integer[]{1492, 1200, 576});
+        }*/
     }
 
     @Override
