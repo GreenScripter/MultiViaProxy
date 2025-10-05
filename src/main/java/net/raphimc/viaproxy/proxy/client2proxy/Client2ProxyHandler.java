@@ -145,12 +145,13 @@ public class Client2ProxyHandler extends SimpleChannelInboundHandler<IPacket> {
             this.proxyConnection.kickClient("§cYour client version is not supported by ViaProxy!");
         }
 
-        final String[] handshakeParts;
+        String[] handshakeParts;
         if (ViaProxy.getConfig().shouldPassthroughBungeecordPlayerInfo()) {
             handshakeParts = packet.address.split("\0");
         } else {
             handshakeParts = new String[]{packet.address};
         }
+//		System.out.println("Handshake: " + Arrays.toString(handshakeParts));
 
         SocketAddress serverAddress = ViaProxy.getConfig().getTargetAddress();
         ProtocolVersion serverVersion = ViaProxy.getConfig().getTargetVersion();
@@ -215,12 +216,13 @@ public class Client2ProxyHandler extends SimpleChannelInboundHandler<IPacket> {
         serverVersion = preConnectEvent.getServerVersion();
 
         Account account = ViaProxy.getConfig().getAccount();
-        System.out.println(Arrays.toString(handshakeParts));
+//        System.out.println(Arrays.toString(handshakeParts));
 		if (handshakeParts.length > 2) {
 			Account temp = ViaProxy.getConfig().getAccountFromUUID(handshakeParts[2]);
 			System.out.println(temp);
 			if (temp != null){
 				account = temp;
+				handshakeParts = new String[]{handshakeParts[0]};
 			}
 		}
         
@@ -230,9 +232,10 @@ public class Client2ProxyHandler extends SimpleChannelInboundHandler<IPacket> {
         if (packet.intendedState.getConnectionState() == ConnectionState.LOGIN && serverVersion.equals(ProtocolTranslator.AUTO_DETECT_PROTOCOL)) {
             SocketAddress finalServerAddress = serverAddress;
             HostAndPort finalClientHandshakeAddress = clientHandshakeAddress;
+            String[] handshakeParts2 = handshakeParts;
             CompletableFuture.runAsync(() -> {
                 final ProtocolVersion detectedVersion = ProtocolVersionDetector.get(finalServerAddress, clientVersion);
-                this.connect(finalServerAddress, detectedVersion, clientVersion, packet.intendedState, finalClientHandshakeAddress, userOptions, handshakeParts);
+                this.connect(finalServerAddress, detectedVersion, clientVersion, packet.intendedState, finalClientHandshakeAddress, userOptions, handshakeParts2);
             }).exceptionally(t -> {
                 if (t instanceof ConnectException || t instanceof UnresolvedAddressException) {
                     this.proxyConnection.kickClient("§cCould not connect to the backend server!");

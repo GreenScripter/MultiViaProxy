@@ -186,12 +186,10 @@ public class ViaProxyConfig {
             "This is required for servers that require a resource pack, but the client can't load it due to version differences."
     })
     private boolean fakeAcceptResourcePacks = false;
-
-    @SuppressWarnings("UnstableApiUsage")
-    public void loadFromArguments(final String[] args) throws Exception {
-        final OptionParser optionParser = new OptionParser();
-        final OptionSpec<Void> optionHelp = optionParser.accepts("help").forHelp();
+    
+    public ViaProxyConfig() {
 		Thread refresh = new Thread(() -> {
+			System.out.println("Starting refresh thread.");
 			final long delay = 10 * 60 * 1000;
 			while (true) {
 				try {
@@ -228,6 +226,12 @@ public class ViaProxyConfig {
 		});
 		refresh.setName("Account Token Refresh Thread");
 		refresh.start();
+    }
+
+    @SuppressWarnings("UnstableApiUsage")
+    public void loadFromArguments(final String[] args) throws Exception {
+        final OptionParser optionParser = new OptionParser();
+        final OptionSpec<Void> optionHelp = optionParser.accepts("help").forHelp();
 
         final Map<OptionSpec<Object>, ConfigOption> optionMap = new HashMap<>();
         final Stack<SectionIndex> stack = new Stack<>();
