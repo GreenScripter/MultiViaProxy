@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +23,13 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import net.lenni0451.optconfig.ConfigContext;
-import net.lenni0451.optconfig.access.impl.reflection.ReflectionClassAccess;
+import net.lenni0451.optconfig.ConfigLoader;
 import net.lenni0451.optconfig.annotations.*;
 import net.lenni0451.optconfig.index.ClassIndexer;
 import net.lenni0451.optconfig.index.ConfigType;
 import net.lenni0451.optconfig.index.types.ConfigOption;
 import net.lenni0451.optconfig.index.types.SectionIndex;
+import net.lenni0451.optconfig.provider.ConfigProvider;
 import net.raphimc.viaproxy.ViaProxy;
 import net.raphimc.viaproxy.cli.BetterHelpFormatter;
 import net.raphimc.viaproxy.cli.HelpRequestedException;
@@ -38,11 +39,12 @@ import net.raphimc.viaproxy.protocoltranslator.ProtocolTranslator;
 import net.raphimc.viaproxy.saves.impl.accounts.Account;
 import net.raphimc.viaproxy.saves.impl.accounts.MicrosoftAccount;
 import net.raphimc.viaproxy.util.AddressUtil;
+import net.raphimc.viaproxy.util.Proxy;
 import net.raphimc.viaproxy.util.config.*;
 import net.raphimc.viaproxy.util.logging.Logger;
 
+import java.io.File;
 import java.net.SocketAddress;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
@@ -83,7 +85,6 @@ public class ViaProxyConfig {
     @Description({
             "The authentication method to use for joining the target server.",
             "none: No authentication (Offline mode)",
-            "openauthmod: Requires the OpenAuthMod client mod (https://modrinth.com/mod/openauthmod)",
             "account: Use an account for joining the target server. (Has to be configured in ViaProxy GUI)"
     })
     private AuthMethod authMethod = AuthMethod.NONE;
@@ -107,8 +108,8 @@ public class ViaProxyConfig {
             "- type://address:port",
             "- type://username:password@address:port"
     })
-    @TypeSerializer(ProxyUriTypeSerializer.class)
-    private URI backendProxyUrl = null;
+    @TypeSerializer(ProxyTypeSerializer.class)
+    private Proxy backendProxy = null;
 
     @Option("backend-haproxy")
     @Description("Send HAProxy protocol messages to the target server.")
@@ -155,9 +156,27 @@ public class ViaProxyConfig {
     })
     private boolean bungeecordPlayerInfoPassthrough = false;
 
+    @Option("rewrite-handshake-packet")
+    @Description({
+            "Enabling this will rewrite the address in the handshake packet to a value the vanilla client would have sent when connecting directly to the target server.",
+            "This should be left enabled unless you are a server owner and you need the original address on the backend server."
+    })
+    private boolean rewriteHandshakePacket = true;
+
+    @Option("rewrite-transfer-packets")
+    @Description({
+            "Enabling this will rewrite transfer packets to point back to ViaProxy. This allows ViaProxy to perform protocol translation when forwarding the player to the actual server from the transfer packet.",
+            "This should be left enabled unless you are a server owner and the servers you are transferring to perform their own protocol translation."
+    })
+    private boolean rewriteTransferPackets = true;
+
     @Option("custom-motd")
     @Description("Custom MOTD to send when clients ping the proxy. Leave empty to use the target server's MOTD.")
     private String customMotd = "";
+
+    @Option("custom-favicon-path")
+    @Description("Relative file path to a custom favicon to send when clients ping the proxy. Leave empty to use the target server's favicon.")
+    private String customFaviconPath = "";
 
     @Option("resource-pack-url")
     @Description({"URL of a resource pack which clients can optionally download when connecting to the server. Leave empty to disable.", "Example: http://example.com/resourcepack.zip"})
@@ -180,6 +199,13 @@ public class ViaProxyConfig {
     @Description("Automatically refresh account tokens.")
     private boolean automaticTokenRefresh = false;
 
+    @Option("fix-fabric-particle-api")
+    @Description({
+            "Fixes an issue where the Fabric Particle API causes disconnects when both the client and server have the mod installed and both are 1.21.5+.",
+            "See https://github.com/ViaVersion/ViaFabric/issues/428"
+    })
+    private boolean fixFabricParticleApi = true;
+
     @Option("fake-accept-resource-packs")
     @Description({
             "Accepts resource packs from the server without showing a prompt to the client.",
@@ -201,11 +227,11 @@ public class ViaProxyConfig {
 					MicrosoftAccount acc = ViaProxy.getSaveManager().accountsSave.getAccounts().stream()//
 							.filter(a -> a instanceof MicrosoftAccount)//
 							.map(a -> (MicrosoftAccount) a)//
-							.min((a1, a2) -> (int) (a1.getMcProfile().getMcToken().getExpireTimeMs() - a2.getMcProfile().getMcToken().getExpireTimeMs()))//
+							.min((a1, a2) -> (int) (a1.getGameProfile().getMcToken().getExpireTimeMs() - a2.getGameProfile().getMcToken().getExpireTimeMs()))//
 							.orElse(null);
 					if (acc != null) {
-						long targetTime = acc.getMcProfile().getMcToken().getExpireTimeMs();
-						System.out.println("Next token refresh " + acc.getMcProfile().getName() + " in " + (targetTime - System.currentTimeMillis()) + " ms. (" +//
+						long targetTime = acc.getGameProfile().getMcToken().getExpireTimeMs();
+						System.out.println("Next token refresh " + acc.getGameProfile().getName() + " in " + (targetTime - System.currentTimeMillis()) + " ms. (" +//
 								Math.max(0, (targetTime - System.currentTimeMillis())) + " ms.)");
 						if ((targetTime - System.currentTimeMillis()) < delay) {
 							try {
@@ -228,14 +254,41 @@ public class ViaProxyConfig {
 		refresh.start();
     }
 
+    @Option("skip-config-state-packet-queue")
+    @Description({
+            "Fixes potential join issues on <= 1.20.1 quilt/fabric servers.",
+            "It's recommended to only enable this if you are experiencing issues with the config state packet queue (See above issue)."
+    })
+    private boolean skipConfigStatePacketQueue = false;
+
+    @Option("log-ips")
+    @Description("Disable this if you want to hide IP addresses in the console and log files.")
+    private boolean logIps = true;
+
+    @Option("log-client-status-requests")
+    @Description("Enable this if you want to see client status requests in the console and log files.")
+    private boolean logClientStatusRequests = false;
+
+    public static ViaProxyConfig create(final File configFile) {
+        final ConfigLoader<ViaProxyConfig> configLoader = new ConfigLoader<>(ViaProxyConfig.class);
+        configLoader.getConfigOptions().setResetInvalidOptions(true).setRewriteConfig(true).setCommentSpacing(1);
+        try {
+            return configLoader.load(ConfigProvider.file(configFile)).getConfigInstance();
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed to load config", e);
+        }
+    }
+
     @SuppressWarnings("UnstableApiUsage")
     public void loadFromArguments(final String[] args) throws Exception {
         final OptionParser optionParser = new OptionParser();
         final OptionSpec<Void> optionHelp = optionParser.accepts("help").forHelp();
+        final OptionSpec<Void> optionListVersions = optionParser.accepts("list-versions", "Lists all supported server/target versions").forHelp();
 
         final Map<OptionSpec<Object>, ConfigOption> optionMap = new HashMap<>();
         final Stack<SectionIndex> stack = new Stack<>();
-        stack.push(ClassIndexer.indexClass(ConfigType.INSTANCED, ViaProxyConfig.class, ReflectionClassAccess::new));
+        final ConfigLoader<ViaProxyConfig> configLoader = new ConfigLoader<>(ViaProxyConfig.class);
+        stack.push(ClassIndexer.indexClass(ConfigType.INSTANCED, ViaProxyConfig.class, configLoader.getConfigOptions().getClassAccessFactory()));
         while (!stack.isEmpty()) {
             final SectionIndex index = stack.pop();
             stack.addAll(index.getSubSections().values());
@@ -245,7 +298,7 @@ public class ViaProxyConfig {
 
                 Object defaultValue = option.getFieldAccess().getValue(this);
                 if (option.getTypeSerializer() != null) {
-                    defaultValue = option.createTypeSerializer(null, ViaProxyConfig.class, this).serialize(defaultValue);
+                    defaultValue = option.createTypeSerializer(configLoader, ViaProxyConfig.class, this).serialize(defaultValue);
                 }
                 final OptionSpec<Object> cliOption = optionParser.accepts(option.getName()).withRequiredArg().ofType((Class<Object>) defaultValue.getClass()).defaultsTo(defaultValue);
                 optionMap.put(cliOption, option);
@@ -257,6 +310,13 @@ public class ViaProxyConfig {
             final OptionSet options = optionParser.parse(args);
             if (options.has(optionHelp)) {
                 throw new HelpRequestedException();
+            } else if (options.has(optionListVersions)) {
+                Logger.LOGGER.info("=== Supported Server Versions ===");
+                for (ProtocolVersion version : ProtocolVersion.getProtocols()) {
+                    Logger.LOGGER.info(version.getName());
+                }
+                Logger.LOGGER.info("===================================");
+                System.exit(0);
             }
 
             if (options.has("minecraft-account-index")) {
@@ -268,7 +328,7 @@ public class ViaProxyConfig {
                 if (options.has(entry.getKey())) {
                     Object value = options.valueOf(entry.getKey());
                     if (option.getTypeSerializer() != null) {
-                        value = option.createTypeSerializer(null, ViaProxyConfig.class, this).deserialize((Class<Object>) option.getFieldAccess().getType(), value);
+                        value = option.createTypeSerializer(configLoader, ViaProxyConfig.class, this).deserialize((Class<Object>) option.getFieldAccess().getType(), value);
                     }
                     if (option.getValidator() != null) {
                         value = option.getValidator().invoke(this, value);
@@ -374,12 +434,12 @@ public class ViaProxyConfig {
         this.save();
     }
 
-    public URI getBackendProxyUrl() {
-        return this.backendProxyUrl;
+    public Proxy getBackendProxy() {
+        return this.backendProxy;
     }
 
-    public void setBackendProxyUrl(final URI backendProxyUrl) {
-        this.backendProxyUrl = backendProxyUrl;
+    public void setBackendProxy(final Proxy backendProxy) {
+        this.backendProxy = backendProxy;
         this.save();
     }
 
@@ -464,12 +524,39 @@ public class ViaProxyConfig {
         this.save();
     }
 
+    public boolean shouldRewriteHandshakePacket() {
+        return this.rewriteHandshakePacket;
+    }
+
+    public void setRewriteHandshakePacket(final boolean rewriteHandshakePacket) {
+        this.rewriteHandshakePacket = rewriteHandshakePacket;
+        this.save();
+    }
+
+    public boolean shouldRewriteTransferPackets() {
+        return this.rewriteTransferPackets;
+    }
+
+    public void setRewriteTransferPackets(final boolean rewriteTransferPackets) {
+        this.rewriteTransferPackets = rewriteTransferPackets;
+        this.save();
+    }
+
     public String getCustomMotd() {
         return this.customMotd;
     }
 
     public void setCustomMotd(final String customMotd) {
         this.customMotd = customMotd;
+        this.save();
+    }
+
+    public String getCustomFaviconPath() {
+        return this.customFaviconPath;
+    }
+
+    public void setCustomFaviconPath(final String customFaviconPath) {
+        this.customFaviconPath = customFaviconPath;
         this.save();
     }
 
@@ -509,12 +596,48 @@ public class ViaProxyConfig {
         this.save();
     }
     
+    public boolean shouldFixFabricParticleApi() {
+        return this.fixFabricParticleApi;
+    }
+
+    public void setFixFabricParticleApi(final boolean fixFabricParticleApi) {
+        this.fixFabricParticleApi = fixFabricParticleApi;
+        this.save();
+    }
+
     public boolean shouldFakeAcceptResourcePacks() {
         return this.fakeAcceptResourcePacks;
     }
 
     public void setFakeAcceptResourcePacks(final boolean fakeAcceptResourcePacks) {
         this.fakeAcceptResourcePacks = fakeAcceptResourcePacks;
+        this.save();
+    }
+
+    public boolean shouldSkipConfigStatePacketQueue() {
+        return this.skipConfigStatePacketQueue;
+    }
+
+    public void setSkipConfigStatePacketQueue(final boolean skipConfigStatePacketQueue) {
+        this.skipConfigStatePacketQueue = skipConfigStatePacketQueue;
+        this.save();
+    }
+
+    public boolean shouldLogIps() {
+        return this.logIps;
+    }
+
+    public void setLogIps(final boolean logIps) {
+        this.logIps = logIps;
+        this.save();
+    }
+
+    public boolean shouldLogClientStatusRequests() {
+        return this.logClientStatusRequests;
+    }
+
+    public void setLogClientStatusRequests(final boolean logClientStatusRequests) {
+        this.logClientStatusRequests = logClientStatusRequests;
         this.save();
     }
 
@@ -541,11 +664,7 @@ public class ViaProxyConfig {
         /**
          * No authentication (Offline mode)
          */
-        NONE("tab.general.minecraft_account.option_no_account"),
-        /**
-         * Requires the OpenAuthMod client mod (https://modrinth.com/mod/openauthmod)
-         */
-        OPENAUTHMOD("tab.general.minecraft_account.option_openauthmod");
+        NONE("tab.general.minecraft_account.option_no_account");
 
         private final String guiTranslationKey;
 

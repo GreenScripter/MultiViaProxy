@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,9 @@ import com.google.common.collect.Lists;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import net.raphimc.netminecraft.packet.IPacket;
+import net.raphimc.netminecraft.constants.ConnectionState;
+import net.raphimc.netminecraft.packet.Packet;
+import net.raphimc.viaproxy.ViaProxy;
 import net.raphimc.viaproxy.proxy.packethandler.PacketHandler;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
 import net.raphimc.viaproxy.proxy.util.ExceptionUtil;
@@ -29,7 +31,7 @@ import net.raphimc.viaproxy.util.logging.Logger;
 
 import java.util.List;
 
-public class Proxy2ServerHandler extends SimpleChannelInboundHandler<IPacket> {
+public class Proxy2ServerHandler extends SimpleChannelInboundHandler<Packet> {
 
     private ProxyConnection proxyConnection;
 
@@ -44,7 +46,9 @@ public class Proxy2ServerHandler extends SimpleChannelInboundHandler<IPacket> {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
 
-        Logger.u_info("disconnect", this.proxyConnection, "Connection closed");
+        if (ViaProxy.getConfig().shouldLogClientStatusRequests() || this.proxyConnection.getP2sConnectionState() != ConnectionState.STATUS) {
+            Logger.u_info("disconnect", this.proxyConnection, "Connection closed");
+        }
         try {
             this.proxyConnection.getC2P().close();
         } catch (Throwable ignored) {
@@ -52,7 +56,7 @@ public class Proxy2ServerHandler extends SimpleChannelInboundHandler<IPacket> {
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, IPacket packet) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, Packet packet) throws Exception {
         if (this.proxyConnection.isClosed()) return;
 
         final List<ChannelFutureListener> listeners = Lists.newArrayList(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);

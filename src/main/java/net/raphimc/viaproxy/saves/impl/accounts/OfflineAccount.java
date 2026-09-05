@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 package net.raphimc.viaproxy.saves.impl.accounts;
 
 import com.google.gson.JsonObject;
+import net.raphimc.vialegacy.api.util.GameProfileUtil;
 
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 public class OfflineAccount extends Account {
@@ -34,7 +34,7 @@ public class OfflineAccount extends Account {
 
     public OfflineAccount(final String name) {
         this.name = name;
-        this.uuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
+        this.uuid = GameProfileUtil.getOfflinePlayerUuid(name);
     }
 
     @Override
@@ -58,11 +58,6 @@ public class OfflineAccount extends Account {
     @Override
     public String getDisplayString() {
         return this.name + " (Offline)";
-    }
-
-    @Override
-    public boolean refresh() {
-        return false;
     }
 
 }

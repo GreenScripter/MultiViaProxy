@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import net.lenni0451.classtransform.utils.loader.InjectionClassLoader;
 import net.lenni0451.classtransform.utils.tree.IClassProvider;
 import net.lenni0451.reflect.stream.RStream;
 import net.raphimc.viaproxy.ViaProxy;
+import net.raphimc.viaproxy.injection.TransformerDowngrader;
 import net.raphimc.viaproxy.util.logging.Logger;
 import org.objectweb.asm.Opcodes;
 import org.yaml.snakeyaml.Yaml;
@@ -104,6 +105,7 @@ public class PluginManager {
             if (nativeClassVersion < Opcodes.V17) {
                 System.setProperty(Constants.ALLOW_MAVEN_LOOKUP, "false");
                 transformerManager.addClassFileTransformer(classLoader, new ClassDowngradingAgent());
+                transformerManager.addTransformerPreprocessor(new TransformerDowngrader(classLoader));
             }
         } catch (Throwable e) {
             Logger.LOGGER.error("Failed to setup class downgrading", e);

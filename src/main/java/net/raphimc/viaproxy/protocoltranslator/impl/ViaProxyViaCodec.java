@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,12 +18,12 @@
 package net.raphimc.viaproxy.protocoltranslator.impl;
 
 import com.viaversion.viaversion.api.connection.UserConnection;
+import com.viaversion.viaversion.platform.ViaCodecHandler;
 import io.netty.channel.ChannelHandlerContext;
-import net.raphimc.vialoader.netty.ViaCodec;
 import net.raphimc.viaproxy.ViaProxy;
 import net.raphimc.viaproxy.util.logging.Logger;
 
-public class ViaProxyViaCodec extends ViaCodec {
+public class ViaProxyViaCodec extends ViaCodecHandler {
 
     public ViaProxyViaCodec(UserConnection user) {
         super(user);

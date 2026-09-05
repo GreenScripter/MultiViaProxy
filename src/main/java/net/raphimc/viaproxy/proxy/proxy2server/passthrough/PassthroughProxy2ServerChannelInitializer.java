@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,8 +41,8 @@ public class PassthroughProxy2ServerChannelInitializer extends Proxy2ServerChann
             return;
         }
 
-        if (ViaProxy.getConfig().getBackendProxyUrl() != null) {
-            channel.pipeline().addLast(VIAPROXY_PROXY_HANDLER_NAME, this.getProxyHandler());
+        if (ViaProxy.getConfig().getBackendProxy() != null) {
+            channel.pipeline().addLast(VIAPROXY_PROXY_HANDLER_NAME, ViaProxy.getConfig().getBackendProxy().createNettyProxyHandler());
         }
         if (ViaProxy.getConfig().useBackendHaProxy()) {
             channel.pipeline().addLast(VIAPROXY_HAPROXY_ENCODER_NAME, HAProxyMessageEncoder.INSTANCE);

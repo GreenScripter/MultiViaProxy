@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,17 +18,12 @@
 package net.raphimc.viaproxy.proxy.packethandler;
 
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
-import net.raphimc.netminecraft.constants.ConnectionState;
-import net.raphimc.netminecraft.constants.MCPackets;
 import net.raphimc.netminecraft.constants.MCPipeline;
-import net.raphimc.netminecraft.packet.IPacket;
-import net.raphimc.netminecraft.packet.PacketTypes;
-import net.raphimc.netminecraft.packet.UnknownPacket;
+import net.raphimc.netminecraft.packet.Packet;
 import net.raphimc.netminecraft.packet.impl.login.S2CLoginCompressionPacket;
-import net.raphimc.netminecraft.packet.impl.login.S2CLoginGameProfilePacket1_7;
+import net.raphimc.netminecraft.packet.impl.login.S2CLoginGameProfilePacket;
+import net.raphimc.netminecraft.packet.impl.play.S2CPlaySetCompressionPacket;
 import net.raphimc.viaproxy.ViaProxy;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
 import net.raphimc.viaproxy.proxy.util.ChannelUtil;
@@ -37,26 +32,16 @@ import java.util.List;
 
 public class CompressionPacketHandler extends PacketHandler {
 
-    private final int setCompressionId;
-
     public CompressionPacketHandler(ProxyConnection proxyConnection) {
         super(proxyConnection);
-
-        this.setCompressionId = MCPackets.S2C_SET_COMPRESSION.getId(proxyConnection.getClientVersion().getVersion());
     }
 
     @Override
-    public boolean handleP2S(IPacket packet, List<ChannelFutureListener> listeners) {
-        if (packet instanceof UnknownPacket unknownPacket && this.proxyConnection.getC2pConnectionState() == ConnectionState.PLAY) {
-            if (unknownPacket.packetId == this.setCompressionId) {
-                final ByteBuf data = Unpooled.wrappedBuffer(unknownPacket.data);
-                final int compressionThreshold = PacketTypes.readVarInt(data); // compression threshold
-                this.proxyConnection.getChannel().attr(MCPipeline.COMPRESSION_THRESHOLD_ATTRIBUTE_KEY).set(compressionThreshold);
-                data.release();
-
-                return false;
-            }
-        } else if (packet instanceof S2CLoginGameProfilePacket1_7) {
+    public boolean handleP2S(Packet packet, List<ChannelFutureListener> listeners) {
+        if (packet instanceof S2CPlaySetCompressionPacket setCompressionPacket) {
+            this.proxyConnection.getChannel().attr(MCPipeline.COMPRESSION_THRESHOLD_ATTRIBUTE_KEY).set(setCompressionPacket.compressionThreshold);
+            return false;
+        } else if (packet instanceof S2CLoginGameProfilePacket) {
             if (this.proxyConnection.getClientVersion().newerThanOrEqualTo(ProtocolVersion.v1_8)) {
                 if (ViaProxy.getConfig().getCompressionThreshold() > -1 && this.proxyConnection.getC2P().attr(MCPipeline.COMPRESSION_THRESHOLD_ATTRIBUTE_KEY).get() == -1) {
                     ChannelUtil.disableAutoRead(this.proxyConnection.getChannel());

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,8 +25,8 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import net.raphimc.netminecraft.constants.ConnectionState;
-import net.raphimc.netminecraft.packet.impl.login.C2SLoginHelloPacket1_7;
-import net.raphimc.netminecraft.util.ChannelType;
+import net.raphimc.netminecraft.packet.impl.login.C2SLoginHelloPacket;
+import net.raphimc.netminecraft.util.TransportType;
 
 import java.net.SocketAddress;
 import java.security.Key;
@@ -34,11 +34,11 @@ import java.security.Key;
 public class DummyProxyConnection extends ProxyConnection {
 
     public DummyProxyConnection(final Channel c2p) {
-        super(null, null, c2p);
+        super(null, c2p);
     }
 
     @Override
-    public void initialize(ChannelType channelType, Bootstrap bootstrap) {
+    public void initialize(TransportType transportType, Bootstrap bootstrap) {
         throw new UnsupportedOperationException();
     }
 
@@ -78,12 +78,12 @@ public class DummyProxyConnection extends ProxyConnection {
     }
 
     @Override
-    public C2SLoginHelloPacket1_7 getLoginHelloPacket() {
+    public C2SLoginHelloPacket getLoginHelloPacket() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void setLoginHelloPacket(C2SLoginHelloPacket1_7 loginHelloPacket) {
+    public void setLoginHelloPacket(C2SLoginHelloPacket loginHelloPacket) {
         throw new UnsupportedOperationException();
     }
 

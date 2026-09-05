@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,6 @@ import java.util.UUID;
 
 public abstract class Account {
 
-    private long lastRefresh = 0L;
-
     public Account() {
     }
 
@@ -40,13 +38,5 @@ public abstract class Account {
     }
 
     public abstract String getDisplayString();
-
-    public boolean refresh() throws Exception {
-        if (System.currentTimeMillis() - this.lastRefresh < 10_000L) {
-            return false;
-        }
-        this.lastRefresh = System.currentTimeMillis();
-        return true;
-    }
 
 }

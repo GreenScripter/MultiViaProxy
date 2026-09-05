@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ import com.viaversion.viabackwards.protocol.v1_20_5to1_20_3.provider.TransferPro
 import com.viaversion.viabackwards.protocol.v1_20_5to1_20_3.storage.CookieStorage;
 import com.viaversion.viaversion.api.connection.UserConnection;
 import io.netty.channel.Channel;
+import net.raphimc.netminecraft.util.MinecraftServerAddress;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
 import net.raphimc.viaproxy.proxy.util.CloseAndReturn;
 import net.raphimc.viaproxy.proxy.util.TransferDataHolder;
@@ -31,7 +32,7 @@ public class ViaProxyTransferProvider implements TransferProvider {
 
     @Override
     public void connectToServer(UserConnection user, String host, int port) {
-        final InetSocketAddress newAddress = new InetSocketAddress(host, port);
+        final InetSocketAddress newAddress = MinecraftServerAddress.ofResolved(host, port);
         final Channel channel = ProxyConnection.fromChannel(user.getChannel()).getC2P();
         TransferDataHolder.addTempRedirect(channel, newAddress);
         if (user.has(CookieStorage.class)) {

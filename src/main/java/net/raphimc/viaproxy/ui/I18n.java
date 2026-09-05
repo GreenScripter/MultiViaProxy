@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ public class I18n {
             for (Map.Entry<Path, byte[]> entry : FileSystemUtil.getFilesInDirectory("assets/viaproxy/language").entrySet()) {
                 final Properties properties = new Properties();
                 properties.load(new InputStreamReader(new ByteArrayInputStream(entry.getValue()), StandardCharsets.UTF_8));
+                if (properties.isEmpty()) continue;
                 LOCALES.put(entry.getKey().getFileName().toString().replace(".properties", ""), properties);
             }
         } catch (Throwable e) {

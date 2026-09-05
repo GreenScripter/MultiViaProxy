@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,27 +19,52 @@ package net.raphimc.viaproxy.util;
 
 import com.google.common.net.HostAndPort;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
+import dev.kastle.netty.channel.nethernet.config.NetherNetAddress;
 import io.netty.channel.unix.DomainSocketAddress;
 import net.lenni0451.reflect.stream.RStream;
 import net.raphimc.netminecraft.util.MinecraftServerAddress;
 import net.raphimc.viabedrock.api.BedrockProtocolVersion;
+import net.raphimc.viabedrock.protocol.data.ProtocolConstants;
 import net.raphimc.vialegacy.api.LegacyProtocolVersion;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.regex.Pattern;
 
 public class AddressUtil {
 
-    public static SocketAddress parse(final String serverAddress, final ProtocolVersion version) {
-        if (serverAddress.startsWith("file:///") || serverAddress.startsWith("unix:///")) { // Unix Socket
-            final String filePath = serverAddress.substring(7);
+    private static final Pattern NETHERNET_NETWORK_ID_PATTERN = Pattern.compile("^(?>[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}|\\d+)$", Pattern.CASE_INSENSITIVE);
 
-            return new DomainSocketAddress(filePath);
+    public static SocketAddress parse(final String serverAddress, final ProtocolVersion version) {
+        if (serverAddress.startsWith("file://") || serverAddress.startsWith("unix://")) { // Unix Socket
+            return new DomainSocketAddress(serverAddress.substring(serverAddress.indexOf("://") + 3));
+        } else if (serverAddress.startsWith("nethernet-rpc://")) { // NetherNet JSON-RPC Address
+            final String addressPart = serverAddress.substring(serverAddress.indexOf("://") + 3);
+            if (NETHERNET_NETWORK_ID_PATTERN.matcher(addressPart).matches()) {
+                return new NetherNetJsonRpcAddress(addressPart);
+            } else {
+                throw new IllegalArgumentException("Invalid NetherNet JSON RPC address");
+            }
+        } else if (serverAddress.startsWith("nethernet://")) { // NetherNet Address
+            final String addressPart = serverAddress.substring(serverAddress.indexOf("://") + 3);
+            if (NETHERNET_NETWORK_ID_PATTERN.matcher(addressPart).matches()) {
+                return new NetherNetAddress(addressPart);
+            } else {
+                final HostAndPort hostAndPort = HostAndPort.fromString(addressPart);
+                if (hostAndPort.getHost().isBlank()) {
+                    throw new IllegalArgumentException("Server address cannot be blank");
+                }
+                return new NetherNetInetSocketAddress(hostAndPort.getHost(), hostAndPort.getPortOrDefault(ProtocolConstants.BEDROCK_NETHERNET_DEFAULT_PORT));
+            }
         } else { // IP Address
             final HostAndPort hostAndPort = HostAndPort.fromString(serverAddress);
+            if (hostAndPort.getHost().isBlank()) {
+                throw new IllegalArgumentException("Server address cannot be blank");
+            }
+
             final int port;
             if (version != null) {
-                port = hostAndPort.getPortOrDefault(getDefaultPort(version));
+                port = hostAndPort.getPortOrDefault(version.equals(BedrockProtocolVersion.bedrockLatest) ? ProtocolConstants.BEDROCK_RAKNET_DEFAULT_PORT : 25565);
             } else {
                 port = hostAndPort.getPort();
             }
@@ -53,18 +78,25 @@ public class AddressUtil {
     }
 
     public static String toString(final SocketAddress address) {
-        if (address instanceof InetSocketAddress inetSocketAddress) {
+        if (address instanceof DomainSocketAddress domainSocketAddress) {
+            return "unix://" + domainSocketAddress.path();
+        } else if (address instanceof NetherNetJsonRpcAddress netherNetAddress) {
+            return "nethernet-rpc://" + netherNetAddress;
+        } else if (address instanceof NetherNetAddress netherNetAddress) {
+            return "nethernet://" + netherNetAddress;
+        } else if (address instanceof NetherNetInetSocketAddress netherNetAddress) {
+            return "nethernet://" + netherNetAddress.getHostString() + ":" + netherNetAddress.getPort();
+        } else if (address instanceof InetSocketAddress inetSocketAddress) {
             return inetSocketAddress.getHostString() + ":" + inetSocketAddress.getPort();
-        } else if (address instanceof DomainSocketAddress domainSocketAddress) {
-            return domainSocketAddress.path();
         } else {
             return address.toString();
         }
     }
 
+    @Deprecated(forRemoval = true)
     public static int getDefaultPort(final ProtocolVersion version) {
         if (version.equals(BedrockProtocolVersion.bedrockLatest)) {
-            return 19132;
+            return ProtocolConstants.BEDROCK_RAKNET_DEFAULT_PORT;
         }
 
         return 25565;

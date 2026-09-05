@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,23 +23,22 @@ import net.lenni0451.commons.swing.GBC;
 import net.lenni0451.lambdaevents.EventHandler;
 import net.raphimc.viabedrock.api.BedrockProtocolVersion;
 import net.raphimc.vialegacy.api.LegacyProtocolVersion;
-import net.raphimc.vialoader.util.ProtocolVersionList;
 import net.raphimc.viaproxy.ViaProxy;
 import net.raphimc.viaproxy.protocoltranslator.viaproxy.ViaProxyConfig;
 import net.raphimc.viaproxy.saves.impl.accounts.ClassicAccount;
 import net.raphimc.viaproxy.ui.I18n;
 import net.raphimc.viaproxy.ui.UITab;
 import net.raphimc.viaproxy.ui.ViaProxyWindow;
+import net.raphimc.viaproxy.ui.elements.LinkLabel;
 import net.raphimc.viaproxy.ui.events.UICloseEvent;
 import net.raphimc.viaproxy.util.AddressUtil;
+import net.raphimc.viaproxy.util.Proxy;
 import net.raphimc.viaproxy.util.logging.Logger;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -77,14 +76,7 @@ public class GeneralTab extends UITab {
         JPanel header = new JPanel();
         header.setLayout(new GridBagLayout());
 
-        JLabel discord = new JLabel("<html><a href=\"\">Discord</a></html>");
-        discord.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                ViaProxyWindow.openURL("https://discord.gg/viaversion");
-            }
-        });
-        discord.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        LinkLabel discord = new LinkLabel("Discord", "https://discord.gg/viaversion");
         GBC.create(header).grid(0, 0).width(0).insets(BORDER_PADDING, BORDER_PADDING, 0, 0).anchor(GBC.NORTHWEST).add(discord);
 
         JLabel title = new JLabel("ViaProxy");
@@ -116,7 +108,7 @@ public class GeneralTab extends UITab {
             JLabel serverVersionLabel = new JLabel(I18n.get("tab.general.server_version.label"));
             GBC.create(body).grid(0, gridy++).insets(BODY_BLOCK_PADDING, BORDER_PADDING, 0, 0).anchor(GBC.NORTHWEST).add(serverVersionLabel);
 
-            this.serverVersion = new JComboBox<>(ProtocolVersionList.getProtocolsNewToOld().toArray(new ProtocolVersion[0]));
+            this.serverVersion = new JComboBox<>(ProtocolVersion.getReversedProtocols().toArray(new ProtocolVersion[0]));
             this.serverVersion.setRenderer(new DefaultListCellRenderer() {
                 @Override
                 public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
@@ -195,6 +187,10 @@ public class GeneralTab extends UITab {
                 this.stateButton.setText(I18n.get("tab.general.state.start"));
                 this.stateButton.setEnabled(true);
                 timer.stop();
+
+                if (System.getProperty("viaproxy.gui.autoStart") != null) {
+                    this.stateButton.doClick(0);
+                }
             }
         });
         timer.start();
@@ -291,12 +287,12 @@ public class GeneralTab extends UITab {
                     }
                     if (!proxyUrl.isBlank()) {
                         try {
-                            ViaProxy.getConfig().setBackendProxyUrl(new URI(proxyUrl));
+                            ViaProxy.getConfig().setBackendProxy(new Proxy(new URI(proxyUrl)));
                         } catch (URISyntaxException e) {
                             throw new IllegalArgumentException(I18n.get("tab.general.error.invalid_proxy_url"));
                         }
                     } else {
-                        ViaProxy.getConfig().setBackendProxyUrl(null);
+                        ViaProxy.getConfig().setBackendProxy(null);
                     }
                     this.applyGuiState();
                     this.viaProxyWindow.advancedTab.applyGuiState();

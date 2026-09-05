@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,14 +21,16 @@ import com.viaversion.viaversion.api.connection.UserConnection;
 import com.viaversion.viaversion.api.minecraft.PlayerMessageSignature;
 import com.viaversion.viaversion.api.minecraft.signature.model.MessageMetadata;
 import com.viaversion.viaversion.api.minecraft.signature.storage.ChatSession1_19_3;
+import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import com.viaversion.viaversion.api.type.Types;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import net.raphimc.netminecraft.constants.ConnectionState;
 import net.raphimc.netminecraft.constants.MCPackets;
 import net.raphimc.netminecraft.constants.MCPipeline;
-import net.raphimc.netminecraft.packet.IPacket;
+import net.raphimc.netminecraft.packet.Packet;
 import net.raphimc.netminecraft.packet.PacketTypes;
 import net.raphimc.netminecraft.packet.UnknownPacket;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
@@ -51,7 +53,7 @@ public class ChatSignaturePacketHandler extends PacketHandler {
     }
 
     @Override
-    public boolean handleC2P(IPacket packet, List<ChannelFutureListener> listeners) throws Exception {
+    public boolean handleC2P(Packet packet, List<ChannelFutureListener> listeners) throws Exception {
         if (packet instanceof UnknownPacket unknownPacket && this.proxyConnection.getC2pConnectionState() == ConnectionState.PLAY) {
             final UserConnection user = this.proxyConnection.getUserConnection();
 
@@ -68,17 +70,17 @@ public class ChatSignaturePacketHandler extends PacketHandler {
                 final MessageMetadata metadata = new MessageMetadata(null, timestamp, salt);
                 final byte[] signature = chatSession.signChatMessage(metadata, message, new PlayerMessageSignature[0]);
 
-                final ByteBuf newChatMessage = Unpooled.buffer();
-                PacketTypes.writeVarInt(newChatMessage, this.chatMessageId);
-                PacketTypes.writeString(newChatMessage, message); // message
-                newChatMessage.writeLong(timestamp); // timestamp
-                newChatMessage.writeLong(salt); // salt
-                Types.OPTIONAL_SIGNATURE_BYTES.write(newChatMessage, signature); // signature
-                PacketTypes.writeVarInt(newChatMessage, 0); // offset
-                Types.ACKNOWLEDGED_BIT_SET.write(newChatMessage, new BitSet(20)); // acknowledged
-                this.proxyConnection.getChannel().writeAndFlush(newChatMessage).addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
-
-                return false;
+                final ByteBuf newChatMessageData = Unpooled.buffer();
+                PacketTypes.writeString(newChatMessageData, message); // message
+                newChatMessageData.writeLong(timestamp); // timestamp
+                newChatMessageData.writeLong(salt); // salt
+                Types.OPTIONAL_SIGNATURE_BYTES.write(newChatMessageData, signature); // signature
+                PacketTypes.writeVarInt(newChatMessageData, 0); // offset
+                Types.ACKNOWLEDGED_BIT_SET.write(newChatMessageData, new BitSet(20)); // acknowledged
+                if (this.proxyConnection.getClientVersion().newerThanOrEqualTo(ProtocolVersion.v1_21_5)) {
+                    newChatMessageData.writeByte(0); // checksum
+                }
+                unknownPacket.data = ByteBufUtil.getBytes(newChatMessageData);
             }
         }
 
@@ -86,7 +88,7 @@ public class ChatSignaturePacketHandler extends PacketHandler {
     }
 
     @Override
-    public boolean handleP2S(IPacket packet, List<ChannelFutureListener> listeners) {
+    public boolean handleP2S(Packet packet, List<ChannelFutureListener> listeners) {
         if (packet instanceof UnknownPacket unknownPacket && this.proxyConnection.getC2pConnectionState() == ConnectionState.PLAY) {
             final UserConnection user = this.proxyConnection.getUserConnection();
 

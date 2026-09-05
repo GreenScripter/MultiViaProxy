@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,85 +18,137 @@
 package net.raphimc.viaproxy.proxy.session;
 
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
+import dev.kastle.netty.channel.nethernet.NetherNetChannelFactory;
+import dev.kastle.netty.channel.nethernet.config.NetherChannelOption;
+import dev.kastle.netty.channel.nethernet.config.NetherNetAddress;
+import dev.kastle.netty.channel.nethernet.signaling.NetherNetClientSignaling;
+import dev.kastle.netty.channel.nethernet.signaling.NetherNetDiscoverySignaling;
+import dev.kastle.netty.channel.nethernet.signaling.NetherNetXboxRpcSignaling;
+import dev.kastle.netty.channel.nethernet.signaling.NetherNetXboxSignaling;
+import dev.kastle.webrtc.PeerConnectionFactory;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.DatagramChannel;
-import net.lenni0451.reflect.stream.RStream;
 import net.raphimc.netminecraft.constants.ConnectionState;
-import net.raphimc.netminecraft.constants.MCPipeline;
-import net.raphimc.netminecraft.util.ChannelType;
+import net.raphimc.netminecraft.util.EventLoops;
+import net.raphimc.netminecraft.util.TransportType;
+import net.raphimc.viabedrock.netty.raknet.MessageCodec;
 import net.raphimc.viabedrock.protocol.data.ProtocolConstants;
-import net.raphimc.vialoader.netty.VLPipeline;
-import net.raphimc.vialoader.netty.viabedrock.PingEncapsulationCodec;
 import net.raphimc.viaproxy.ViaProxy;
+import net.raphimc.viaproxy.saves.impl.accounts.BedrockAccount;
+import net.raphimc.viaproxy.util.NetherNetInetSocketAddress;
+import net.raphimc.viaproxy.util.NetherNetJsonRpcAddress;
 import org.cloudburstmc.netty.channel.raknet.RakChannelFactory;
+import org.cloudburstmc.netty.channel.raknet.RakClientChannel;
 import org.cloudburstmc.netty.channel.raknet.config.RakChannelOption;
 
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class BedrockProxyConnection extends ProxyConnection {
 
-    public BedrockProxyConnection(Supplier<ChannelHandler> handlerSupplier, Function<Supplier<ChannelHandler>, ChannelInitializer<Channel>> channelInitializerSupplier, Channel c2p) {
-        super(handlerSupplier, channelInitializerSupplier, c2p);
+    private boolean useNetherNetDiscovery;
+    private boolean useNetherNetXbox;
+    private boolean useNetherNetXboxRpc;
+
+    public BedrockProxyConnection(final ChannelInitializer<Channel> channelInitializer, final Channel c2p) {
+        super(channelInitializer, c2p);
     }
 
     @Override
-    public void initialize(ChannelType channelType, final Bootstrap bootstrap) {
-        if (!DatagramChannel.class.isAssignableFrom(channelType.udpClientChannelClass())) {
-            throw new IllegalArgumentException("Channel type must be a DatagramChannel");
-        }
-        if (channelType == ChannelType.KQUEUE) channelType = ChannelType.NIO; // KQueue doesn't work for Bedrock for some reason
-        final Class<? extends DatagramChannel> channelClass = (Class<? extends DatagramChannel>) channelType.udpClientChannelClass();
-
+    public void initialize(final TransportType transportType, final Bootstrap bootstrap) {
         bootstrap
-                .group(channelType.clientEventLoopGroup().get())
-                .channelFactory(RakChannelFactory.client(channelClass))
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, ViaProxy.getConfig().getConnectTimeout())
-                .option(RakChannelOption.RAK_PROTOCOL_VERSION, ProtocolConstants.BEDROCK_RAKNET_PROTOCOL_VERSION)
-                .option(RakChannelOption.RAK_COMPATIBILITY_MODE, true)
-                .option(RakChannelOption.RAK_CLIENT_INTERNAL_ADDRESSES, 20)
-                .option(RakChannelOption.RAK_CONNECT_TIMEOUT, (long) ViaProxy.getConfig().getConnectTimeout())
-                .option(RakChannelOption.RAK_SESSION_TIMEOUT, 30_000L)
-                .option(RakChannelOption.RAK_GUID, ThreadLocalRandom.current().nextLong())
                 .attr(ProxyConnection.PROXY_CONNECTION_ATTRIBUTE_KEY, this)
-                .handler(this.channelInitializerSupplier.apply(this.handlerSupplier));
+                .handler(this.channelInitializer);
+
+        if (this.getC2pConnectionState() == ConnectionState.STATUS) {
+            this.initializeRaw(transportType, bootstrap);
+        } else if (this.useNetherNetDiscovery || this.useNetherNetXbox) {
+            this.initializeNetherNet(transportType, bootstrap);
+        } else {
+            this.initializeRakNet(transportType, bootstrap);
+        }
 
         this.channelFuture = bootstrap.register().syncUninterruptibly();
-
-        /*if (this.getChannel().config().setOption(RakChannelOption.RAK_IP_DONT_FRAGMENT, true)) {
-            this.getChannel().config().setOption(RakChannelOption.RAK_MTU_SIZES, new Integer[]{1492, 1200, 576});
-        }*/
     }
 
     @Override
     public ChannelFuture connectToServer(final SocketAddress serverAddress, final ProtocolVersion targetVersion) {
-        if (!(serverAddress instanceof InetSocketAddress)) {
-            throw new IllegalArgumentException("Server address must be an InetSocketAddress");
-        }
-
-        if (this.getC2pConnectionState() == ConnectionState.STATUS) {
-            RStream.of(this).withSuper().fields().by("serverAddress").set(serverAddress);
-            RStream.of(this).withSuper().fields().by("serverVersion").set(targetVersion);
-            return this.ping(serverAddress);
-        } else {
-            return super.connectToServer(serverAddress, targetVersion);
-        }
+        this.useNetherNetDiscovery = serverAddress instanceof NetherNetInetSocketAddress;
+        this.useNetherNetXbox = serverAddress instanceof NetherNetAddress;
+        this.useNetherNetXboxRpc = serverAddress instanceof NetherNetJsonRpcAddress;
+        return super.connectToServer(serverAddress, targetVersion);
     }
 
-    private ChannelFuture ping(final SocketAddress address) {
-        if (this.channelFuture == null) this.initialize(ChannelType.get(address), new Bootstrap());
+    protected void initializeRakNet(TransportType transportType, final Bootstrap bootstrap) {
+        if (!DatagramChannel.class.isAssignableFrom(transportType.udpClientChannelClass())) {
+            throw new IllegalArgumentException("Channel type must be a DatagramChannel");
+        }
+        if (transportType == TransportType.KQUEUE) {
+            transportType = TransportType.NIO; // KQueue doesn't work due to requiring the channel to be bound instead of connected
+        }
 
-        this.channelFuture.channel().eventLoop().submit(() -> {
-            this.getChannel().pipeline().replace(VLPipeline.VIABEDROCK_FRAME_ENCAPSULATION_HANDLER_NAME, "ping_encapsulation", new PingEncapsulationCodec(((InetSocketAddress) address)));
-            this.getChannel().pipeline().remove(VLPipeline.VIABEDROCK_PACKET_ENCAPSULATION_HANDLER_NAME);
-            this.getChannel().pipeline().remove(MCPipeline.SIZER_HANDLER_NAME);
-        });
+        final RakChannelFactory<RakClientChannel> channelFactory = RakChannelFactory.client((Class<? extends DatagramChannel>) transportType.udpClientChannelClass());
+        bootstrap
+                .group(EventLoops.getClientEventLoop(transportType))
+                .channelFactory(() -> {
+                    final Channel channel = channelFactory.newChannel();
+                    if (channel.config().setOption(RakChannelOption.RAK_IP_DONT_FRAGMENT, true)) {
+                        channel.config().setOption(RakChannelOption.RAK_MTU_SIZES, new Integer[]{1492, 1200, 576});
+                    }
+                    return channel;
+                })
+                .option(RakChannelOption.RAK_PROTOCOL_VERSION, ProtocolConstants.BEDROCK_RAKNET_PROTOCOL_VERSION)
+                .option(RakChannelOption.RAK_COMPATIBILITY_MODE, true)
+                .option(RakChannelOption.RAK_CLIENT_INTERNAL_ADDRESSES, 20)
+                .option(RakChannelOption.RAK_TIME_BETWEEN_SEND_CONNECTION_ATTEMPTS_MS, 500)
+                .option(RakChannelOption.RAK_CONNECT_TIMEOUT, (long) ViaProxy.getConfig().getConnectTimeout())
+                .option(RakChannelOption.RAK_SESSION_TIMEOUT, 30_000L)
+                .option(RakChannelOption.RAK_GUID, ThreadLocalRandom.current().nextLong());
+    }
 
-        return this.getChannel().bind(new InetSocketAddress(0));
+    protected void initializeNetherNet(final TransportType transportType, final Bootstrap bootstrap) {
+        final NetherNetClientSignaling netherNetSignaling;
+        if (this.useNetherNetDiscovery) {
+            netherNetSignaling = new NetherNetDiscoverySignaling();
+        } else if (this.useNetherNetXbox) {
+            if (this.getUserOptions().account() instanceof BedrockAccount bedrockAccount) {
+                if (this.useNetherNetXboxRpc) {
+                    netherNetSignaling = new NetherNetXboxRpcSignaling(bedrockAccount.getAuthManager().getMinecraftSession().getUpToDateUnchecked().getAuthorizationHeader());
+                } else {
+                    netherNetSignaling = new NetherNetXboxSignaling(bedrockAccount.getAuthManager().getMinecraftSession().getUpToDateUnchecked().getAuthorizationHeader());
+                }
+            } else {
+                this.kickClient("§cThe configured target server requires Xbox signaling, but no Minecraft: Bedrock Edition account is selected.");
+                return;
+            }
+        } else {
+            throw new IllegalStateException("Invalid signaling type");
+        }
+        final ChannelHandler channelHandler = bootstrap.config().handler();
+        bootstrap
+                .group(EventLoops.getClientEventLoop(TransportType.NIO))
+                .channelFactory(NetherNetChannelFactory.client(new PeerConnectionFactory(), netherNetSignaling))
+                .option(NetherChannelOption.NETHER_CLIENT_HANDSHAKE_TIMEOUT_MS, ViaProxy.getConfig().getConnectTimeout())
+                .option(NetherChannelOption.NETHER_CLIENT_MAX_HANDSHAKE_ATTEMPTS, 1)
+                .handler(new ChannelInitializer<>() {
+                    @Override
+                    protected void initChannel(final Channel channel) {
+                        channel.pipeline().addLast(channelHandler);
+                        channel.pipeline().remove(MessageCodec.NAME);
+                    }
+                });
+    }
+
+    protected void initializeRaw(TransportType transportType, final Bootstrap bootstrap) {
+        if (transportType == TransportType.KQUEUE) {
+            transportType = TransportType.NIO; // KQueue doesn't work due to requiring the channel to be bound instead of connected
+        }
+
+        bootstrap
+                .group(EventLoops.getClientEventLoop(transportType))
+                .channel(transportType.udpClientChannelClass());
     }
 
 }

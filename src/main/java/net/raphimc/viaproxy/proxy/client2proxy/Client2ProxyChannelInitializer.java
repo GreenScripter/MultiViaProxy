@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,15 +17,19 @@
  */
 package net.raphimc.viaproxy.proxy.client2proxy;
 
+import com.viaversion.viaversion.api.connection.UserConnection;
+import com.viaversion.viaversion.platform.ViaChannelInitializer;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import net.raphimc.netminecraft.constants.MCPipeline;
+import net.raphimc.netminecraft.netty.codec.NoReadFlowControlHandler;
 import net.raphimc.netminecraft.netty.connection.MinecraftChannelInitializer;
-import net.raphimc.netminecraft.packet.registry.PacketRegistryUtil;
+import net.raphimc.netminecraft.packet.registry.DefaultPacketRegistry;
 import net.raphimc.viaproxy.ViaProxy;
 import net.raphimc.viaproxy.plugins.events.Client2ProxyChannelInitializeEvent;
 import net.raphimc.viaproxy.plugins.events.types.ITyped;
+import net.raphimc.viaproxy.protocoltranslator.impl.ViaProxyViaCodec;
 import net.raphimc.viaproxy.proxy.client2proxy.passthrough.LegacyPassthroughInitialHandler;
 
 import java.util.function.Supplier;
@@ -56,7 +60,11 @@ public class Client2ProxyChannelInitializer extends MinecraftChannelInitializer 
         }
 
         super.initChannel(channel);
-        channel.attr(MCPipeline.PACKET_REGISTRY_ATTRIBUTE_KEY).set(PacketRegistryUtil.getHandshakingRegistry(false));
+        channel.attr(MCPipeline.PACKET_REGISTRY_ATTRIBUTE_KEY).set(new DefaultPacketRegistry(false, -1));
+
+        final UserConnection user = ViaChannelInitializer.createUserConnection(channel, false);
+        channel.pipeline().addBefore(MCPipeline.PACKET_CODEC_HANDLER_NAME, ViaProxyViaCodec.NAME, new ViaProxyViaCodec(user));
+        channel.pipeline().addAfter(ViaProxyViaCodec.NAME, "via-" + MCPipeline.FLOW_CONTROL_HANDLER_NAME, new NoReadFlowControlHandler());
 
         if (ViaProxy.EVENT_MANAGER.call(new Client2ProxyChannelInitializeEvent(ITyped.Type.POST, channel, false)).isCancelled()) {
             channel.close();

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,7 +51,11 @@ public class ViaProxyMappingDataLoader extends MappingDataLoader {
         for (Map.Entry<String, JsonElement> blockEntry : materialsData.getAsJsonObject("blocks").entrySet()) {
             final Map<ProtocolVersion, String> blockMaterials = new HashMap<>();
             for (Map.Entry<String, JsonElement> entry : blockEntry.getValue().getAsJsonObject().entrySet()) {
-                blockMaterials.put(ProtocolVersion.getClosest(entry.getKey()), entry.getValue().getAsString());
+                final ProtocolVersion version = ProtocolVersion.getClosest(entry.getKey());
+                if (version == null) {
+                    throw new IllegalStateException("Unknown protocol version: " + entry.getKey());
+                }
+                blockMaterials.put(version, entry.getValue().getAsString());
             }
             BLOCK_MATERIALS.put(blockEntry.getKey(), blockMaterials);
         }

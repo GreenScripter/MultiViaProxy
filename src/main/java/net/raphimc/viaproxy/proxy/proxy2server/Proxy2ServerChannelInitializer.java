@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,30 +18,33 @@
 package net.raphimc.viaproxy.proxy.proxy2server;
 
 import com.viaversion.viaversion.api.connection.UserConnection;
-import com.viaversion.viaversion.connection.UserConnectionImpl;
-import com.viaversion.viaversion.protocol.ProtocolPipelineImpl;
+import com.viaversion.viaversion.platform.ViaChannelInitializer;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.handler.codec.haproxy.HAProxyMessageEncoder;
-import io.netty.handler.proxy.HttpProxyHandler;
-import io.netty.handler.proxy.ProxyHandler;
-import io.netty.handler.proxy.Socks4ProxyHandler;
-import io.netty.handler.proxy.Socks5ProxyHandler;
+import net.raphimc.netminecraft.constants.ConnectionState;
 import net.raphimc.netminecraft.constants.MCPipeline;
 import net.raphimc.netminecraft.netty.codec.NoReadFlowControlHandler;
 import net.raphimc.netminecraft.netty.connection.MinecraftChannelInitializer;
-import net.raphimc.netminecraft.packet.registry.PacketRegistryUtil;
+import net.raphimc.netminecraft.packet.registry.DefaultPacketRegistry;
 import net.raphimc.viabedrock.api.BedrockProtocolVersion;
-import net.raphimc.vialoader.netty.VLPipeline;
+import net.raphimc.viabedrock.netty.BatchLengthCodec;
+import net.raphimc.viabedrock.netty.DisconnectHandler;
+import net.raphimc.viabedrock.netty.PacketCodec;
+import net.raphimc.viabedrock.netty.raknet.MessageCodec;
+import net.raphimc.viabedrock.netty.util.DatagramCodec;
+import net.raphimc.viabedrock.protocol.NetherNetStatusProtocol;
+import net.raphimc.viabedrock.protocol.RakNetStatusProtocol;
+import net.raphimc.vialegacy.api.LegacyProtocolVersion;
+import net.raphimc.vialegacy.netty.PreNettyLengthCodec;
 import net.raphimc.viaproxy.ViaProxy;
 import net.raphimc.viaproxy.plugins.events.Proxy2ServerChannelInitializeEvent;
 import net.raphimc.viaproxy.plugins.events.types.ITyped;
-import net.raphimc.viaproxy.protocoltranslator.impl.ViaProxyVLPipeline;
+import net.raphimc.viaproxy.protocoltranslator.impl.ViaProxyViaCodec;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
+import net.raphimc.viaproxy.util.NetherNetInetSocketAddress;
 
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.util.Locale;
 import java.util.function.Supplier;
 
 public class Proxy2ServerChannelInitializer extends MinecraftChannelInitializer {
@@ -62,54 +65,47 @@ public class Proxy2ServerChannelInitializer extends MinecraftChannelInitializer 
 
         final ProxyConnection proxyConnection = ProxyConnection.fromChannel(channel);
 
-        final UserConnection user = new UserConnectionImpl(channel, true);
-        new ProtocolPipelineImpl(user);
-        proxyConnection.setUserConnection(user);
-
-        if (ViaProxy.getConfig().getBackendProxyUrl() != null && !proxyConnection.getServerVersion().equals(BedrockProtocolVersion.bedrockLatest)) {
-            channel.pipeline().addLast(VIAPROXY_PROXY_HANDLER_NAME, this.getProxyHandler());
+        if (ViaProxy.getConfig().getBackendProxy() != null && !proxyConnection.getServerVersion().equals(BedrockProtocolVersion.bedrockLatest)) {
+            channel.pipeline().addLast(VIAPROXY_PROXY_HANDLER_NAME, ViaProxy.getConfig().getBackendProxy().createNettyProxyHandler());
         }
         if (ViaProxy.getConfig().useBackendHaProxy()) {
             channel.pipeline().addLast(VIAPROXY_HAPROXY_ENCODER_NAME, HAProxyMessageEncoder.INSTANCE);
         }
 
         super.initChannel(channel);
-        channel.attr(MCPipeline.PACKET_REGISTRY_ATTRIBUTE_KEY).set(PacketRegistryUtil.getHandshakingRegistry(true));
+        channel.attr(MCPipeline.PACKET_REGISTRY_ATTRIBUTE_KEY).set(new DefaultPacketRegistry(true, proxyConnection.getClientVersion().getVersion()));
 
-        channel.pipeline().addLast(new ViaProxyVLPipeline(user, proxyConnection.getServerVersion()));
-        channel.pipeline().addAfter(VLPipeline.VIA_CODEC_NAME, "via-" + MCPipeline.FLOW_CONTROL_HANDLER_NAME, new NoReadFlowControlHandler());
-        if (proxyConnection.getServerVersion().equals(BedrockProtocolVersion.bedrockLatest)) {
+        final UserConnection user = ViaChannelInitializer.createUserConnection(channel, true);
+        proxyConnection.setUserConnection(user);
+
+        channel.pipeline().addBefore(MCPipeline.PACKET_CODEC_HANDLER_NAME, ViaProxyViaCodec.NAME, new ViaProxyViaCodec(user));
+        channel.pipeline().addAfter(ViaProxyViaCodec.NAME, "via-" + MCPipeline.FLOW_CONTROL_HANDLER_NAME, new NoReadFlowControlHandler());
+        if (proxyConnection.getServerVersion().olderThanOrEqualTo(LegacyProtocolVersion.r1_6_4)) {
+            channel.pipeline().addBefore(MCPipeline.SIZER_HANDLER_NAME, PreNettyLengthCodec.NAME, new PreNettyLengthCodec(user));
+        } else if (proxyConnection.getServerVersion().equals(BedrockProtocolVersion.bedrockLatest)) {
             channel.pipeline().remove(MCPipeline.COMPRESSION_HANDLER_NAME);
             channel.pipeline().remove(MCPipeline.ENCRYPTION_HANDLER_NAME);
+
+            if (proxyConnection.getC2pConnectionState() != ConnectionState.STATUS) {
+                channel.pipeline().addBefore(MCPipeline.SIZER_HANDLER_NAME, DisconnectHandler.NAME, new DisconnectHandler());
+                channel.pipeline().addBefore(MCPipeline.SIZER_HANDLER_NAME, MessageCodec.NAME, new MessageCodec());
+                channel.pipeline().replace(MCPipeline.SIZER_HANDLER_NAME, MCPipeline.SIZER_HANDLER_NAME, new BatchLengthCodec());
+                channel.pipeline().addBefore(ViaProxyViaCodec.NAME, PacketCodec.NAME, new PacketCodec());
+            } else {
+                channel.pipeline().replace(MCPipeline.SIZER_HANDLER_NAME, DatagramCodec.NAME, new DatagramCodec());
+                if (proxyConnection.getServerAddress() instanceof NetherNetInetSocketAddress) {
+                    user.getProtocolInfo().getPipeline().add(NetherNetStatusProtocol.INSTANCE);
+                } else if (proxyConnection.getServerAddress() instanceof InetSocketAddress) {
+                    user.getProtocolInfo().getPipeline().add(RakNetStatusProtocol.INSTANCE);
+                } else {
+                    throw new UnsupportedOperationException("Unsupported address type for Bedrock status: " + proxyConnection.getServerAddress().getClass().getName());
+                }
+            }
         }
 
         if (ViaProxy.EVENT_MANAGER.call(new Proxy2ServerChannelInitializeEvent(ITyped.Type.POST, channel, false)).isCancelled()) {
             channel.close();
         }
-    }
-
-    protected ProxyHandler getProxyHandler() {
-        final URI proxyUrl = ViaProxy.getConfig().getBackendProxyUrl();
-        final InetSocketAddress proxyAddress = new InetSocketAddress(proxyUrl.getHost(), proxyUrl.getPort());
-        final String username = proxyUrl.getUserInfo() != null ? proxyUrl.getUserInfo().split(":")[0] : null;
-        final String password = proxyUrl.getUserInfo() != null && proxyUrl.getUserInfo().contains(":") ? proxyUrl.getUserInfo().split(":")[1] : null;
-
-        switch (proxyUrl.getScheme().toUpperCase(Locale.ROOT)) {
-            case "HTTP", "HTTPS" -> {
-                if (username != null && password != null) return new HttpProxyHandler(proxyAddress, username, password);
-                else return new HttpProxyHandler(proxyAddress);
-            }
-            case "SOCKS4" -> {
-                if (username != null) return new Socks4ProxyHandler(proxyAddress, username);
-                else return new Socks4ProxyHandler(proxyAddress);
-            }
-            case "SOCKS5" -> {
-                if (username != null && password != null) return new Socks5ProxyHandler(proxyAddress, username, password);
-                else return new Socks5ProxyHandler(proxyAddress);
-            }
-        }
-
-        throw new IllegalArgumentException("Unknown proxy type: " + proxyUrl.getScheme());
     }
 
 }

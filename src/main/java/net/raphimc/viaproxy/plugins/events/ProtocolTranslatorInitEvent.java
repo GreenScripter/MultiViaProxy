@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ public class ProtocolTranslatorInitEvent {
     private final List<Supplier<?>> additionalPlatformSuppliers = new ArrayList<>();
 
     public ProtocolTranslatorInitEvent(final Supplier<?>... additionalPlatformSuppliers) {
-        for (final Supplier<?> platformSupplier : additionalPlatformSuppliers) {
+        for (Supplier<?> platformSupplier : additionalPlatformSuppliers) {
             this.registerPlatform(platformSupplier);
         }
     }

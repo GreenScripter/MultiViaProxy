@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,13 +22,18 @@ import net.raphimc.viaproxy.proxy.session.ProxyConnection;
 import net.raphimc.viaproxy.util.AddressUtil;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
-import org.fusesource.jansi.AnsiConsole;
+import org.apache.logging.log4j.core.config.plugins.util.PluginManager;
+import org.jline.jansi.AnsiConsole;
 
 import java.io.PrintStream;
 import java.net.SocketAddress;
 import java.util.Locale;
 
 public class Logger {
+
+    static {
+        PluginManager.addPackage("net.raphimc.viaproxy.util.logging");
+    }
 
     public static final org.apache.logging.log4j.Logger LOGGER = LogManager.getLogger("ViaProxy");
 

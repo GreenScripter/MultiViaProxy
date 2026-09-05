@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.util.ResourceLeakDetector;
 import io.netty.util.concurrent.GlobalEventExecutor;
+import io.netty.util.internal.PlatformDependent;
 import net.lenni0451.classtransform.TransformerManager;
 import net.lenni0451.classtransform.additionalclassprovider.GuavaClassPathProvider;
 import net.lenni0451.classtransform.mixinstranslator.MixinsTranslator;
@@ -30,8 +31,6 @@ import net.lenni0451.classtransform.utils.loader.InjectionClassLoader;
 import net.lenni0451.classtransform.utils.tree.IClassProvider;
 import net.lenni0451.lambdaevents.LambdaManager;
 import net.lenni0451.lambdaevents.generator.LambdaMetaFactoryGenerator;
-import net.lenni0451.optconfig.ConfigLoader;
-import net.lenni0451.optconfig.provider.ConfigProvider;
 import net.lenni0451.reflect.Agents;
 import net.lenni0451.reflect.ClassLoaders;
 import net.lenni0451.reflect.JavaBypass;
@@ -50,6 +49,7 @@ import net.raphimc.viaproxy.proxy.client2proxy.Client2ProxyChannelInitializer;
 import net.raphimc.viaproxy.proxy.client2proxy.Client2ProxyHandler;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
 import net.raphimc.viaproxy.saves.SaveManager;
+import net.raphimc.viaproxy.tasks.SystemRequirementsCheck;
 import net.raphimc.viaproxy.tasks.UpdateCheckTask;
 import net.raphimc.viaproxy.ui.SplashScreen;
 import net.raphimc.viaproxy.ui.ViaProxyWindow;
@@ -65,6 +65,7 @@ import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -73,7 +74,7 @@ import java.util.function.Consumer;
 public class ViaProxy {
 
     public static final String VERSION = "${version}";
-    public static final String IMPL_VERSION = "${impl_version}";
+    public static final String IMPL_VERSION = "git-ViaProxy-${version}:${commit_hash}";
 
     public static final LambdaManager EVENT_MANAGER = LambdaManager.threadSafe(new LambdaMetaFactoryGenerator(JavaBypass.TRUSTED_LOOKUP));
     private static /*final*/ File CWD;
@@ -136,6 +137,21 @@ public class ViaProxy {
             }
             failedCwds.add(potentialCwd);
         }
+        if (CWD == null) { // Backup strategy for weird permission setups: Attempt to write a dummy file to check if the directory is writable
+            for (File potentialCwd : potentialCwds) {
+                if (potentialCwd.isDirectory()) {
+                    try {
+                        final Path testFile = new File(potentialCwd, "viaproxy_writable_test.txt").toPath();
+                        Files.deleteIfExists(testFile);
+                        Files.writeString(testFile, "This is just a test. This file can be deleted.");
+                        Files.deleteIfExists(testFile);
+                        CWD = potentialCwd;
+                        break;
+                    } catch (IOException ignored) {
+                    }
+                }
+            }
+        }
         if (CWD != null) {
             System.setProperty("user.dir", CWD.getAbsolutePath());
         } else if (useUI) {
@@ -170,26 +186,7 @@ public class ViaProxy {
             }
         }
         if (System.getProperty("ignoreSystemRequirements") == null) {
-            if ("32".equals(System.getProperty("sun.arch.data.model")) && Runtime.getRuntime().maxMemory() < 256 * 1024 * 1024) {
-                Logger.LOGGER.fatal("ViaProxy is not able to run on 32bit Java.");
-                if (useUI) {
-                    JOptionPane.showMessageDialog(null, "ViaProxy is not able to run on 32bit Java. Please install 64bit Java", "ViaProxy", JOptionPane.ERROR_MESSAGE);
-                }
-                System.exit(1);
-            }
-
-            if (Runtime.getRuntime().maxMemory() < 256 * 1024 * 1024) {
-                Logger.LOGGER.fatal("ViaProxy is not able to run with less than 256MB of RAM.");
-                if (useUI) {
-                    JOptionPane.showMessageDialog(null, "ViaProxy is not able to run with less than 256MB of RAM.", "ViaProxy", JOptionPane.ERROR_MESSAGE);
-                }
-                System.exit(1);
-            } else if (Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024) {
-                Logger.LOGGER.warn("ViaProxy has less than 512MB of RAM. This may cause issues with multiple clients connected.");
-                if (useUI) {
-                    JOptionPane.showMessageDialog(null, "ViaProxy has less than 512MB of RAM. This may cause issues with multiple clients connected.", "ViaProxy", JOptionPane.WARNING_MESSAGE);
-                }
-            }
+            SystemRequirementsCheck.run(useUI);
         }
 
         final SplashScreen splashScreen;
@@ -216,14 +213,6 @@ public class ViaProxy {
         ViaProxy.loadNetty();
         ClassLoaderPriorityUtil.loadOverridingJars();
 
-        final File viaProxyConfigFile;
-        if (useConfig) {
-            viaProxyConfigFile = new File(args[1]);
-        } else {
-            viaProxyConfigFile = new File(ViaProxy.getCwd(), "viaproxy.yml");
-        }
-        final boolean firstStart = !viaProxyConfigFile.exists();
-
         progressConsumer.accept("Loading Plugins");
         PLUGIN_MANAGER = new PluginManager();
         progressConsumer.accept("Loading Protocol Translators");
@@ -231,13 +220,19 @@ public class ViaProxy {
         progressConsumer.accept("Loading Saves");
         SAVE_MANAGER = new SaveManager();
         progressConsumer.accept("Loading Config");
-        final ConfigLoader<ViaProxyConfig> configLoader = new ConfigLoader<>(ViaProxyConfig.class);
-        configLoader.getConfigOptions().setResetInvalidOptions(true).setRewriteConfig(true).setCommentSpacing(1);
-        try {
-            CONFIG = configLoader.load(ConfigProvider.file(viaProxyConfigFile)).getConfigInstance();
-        } catch (Throwable e) {
-            throw new RuntimeException("Failed to load config", e);
+        final File viaProxyConfigFile;
+        if (useConfig) {
+            final File absoluteConfigFile = new File(args[1]);
+            if (absoluteConfigFile.isAbsolute()) {
+                viaProxyConfigFile = absoluteConfigFile;
+            } else {
+                viaProxyConfigFile = new File(ViaProxy.getCwd(), args[1]);
+            }
+        } else {
+            viaProxyConfigFile = new File(ViaProxy.getCwd(), "viaproxy.yml");
         }
+        final boolean firstStart = !viaProxyConfigFile.exists();
+        CONFIG = ViaProxyConfig.create(viaProxyConfigFile);
 
         if (useUI) {
             progressConsumer.accept("Loading GUI");
@@ -275,11 +270,9 @@ public class ViaProxy {
             }
             EVENT_MANAGER.call(new ViaProxyLoadedEvent());
             Logger.LOGGER.info("ViaProxy started successfully!");
-            startProxy();
+            ViaProxy.startProxy();
 
-            while (true) {
-                Thread.sleep(Integer.MAX_VALUE);
-            }
+            Thread.sleep(Integer.MAX_VALUE);
         }
     }
 
@@ -289,7 +282,7 @@ public class ViaProxy {
         }
         try {
             Logger.LOGGER.info("Starting proxy server");
-            currentProxyServer = new NetServer(() -> EVENT_MANAGER.call(new Client2ProxyHandlerCreationEvent(new Client2ProxyHandler(), false)).getHandler(), Client2ProxyChannelInitializer::new);
+            currentProxyServer = new NetServer(new Client2ProxyChannelInitializer(() -> EVENT_MANAGER.call(new Client2ProxyHandlerCreationEvent(new Client2ProxyHandler(), false)).getHandler()));
             EVENT_MANAGER.call(new ProxyStartEvent());
             Logger.LOGGER.info("Binding proxy server to " + AddressUtil.toString(CONFIG.getBindAddress()));
             currentProxyServer.bind(CONFIG.getBindAddress(), false);
@@ -318,8 +311,8 @@ public class ViaProxy {
 
     private static void loadNetty() {
         ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED);
-        if (System.getProperty("io.netty.allocator.maxOrder") == null) {
-            System.setProperty("io.netty.allocator.maxOrder", "9");
+        if (System.getProperty("io.netty.allocator.type") == null) {
+            System.setProperty("io.netty.allocator.type", PlatformDependent.isAndroid() ? "unpooled" : "pooled");
         }
         MCPipeline.useOptimizedPipeline();
         CLIENT_CHANNELS = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);

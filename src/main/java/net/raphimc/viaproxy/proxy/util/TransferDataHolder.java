@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,13 +23,14 @@ import io.netty.channel.Channel;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public class TransferDataHolder {
 
-    private static final Map<InetAddress, InetSocketAddress> TEMP_REDIRECTS = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).<InetAddress, InetSocketAddress>build().asMap();
-    private static final Map<InetAddress, CookieStorage> COOKIE_STORAGES = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).<InetAddress, CookieStorage>build().asMap();
+    private static final Map<InetAddress, InetSocketAddress> TEMP_REDIRECTS = CacheBuilder.newBuilder().expireAfterWrite(Duration.of(1, ChronoUnit.MINUTES)).<InetAddress, InetSocketAddress>build().asMap();
+    private static final Map<InetAddress, CookieStorage> COOKIE_STORAGES = CacheBuilder.newBuilder().expireAfterWrite(Duration.of(1, ChronoUnit.MINUTES)).<InetAddress, CookieStorage>build().asMap();
 
     public static void addTempRedirect(final Channel channel, final InetSocketAddress redirect) {
         TEMP_REDIRECTS.put(getChannelAddress(channel), redirect);

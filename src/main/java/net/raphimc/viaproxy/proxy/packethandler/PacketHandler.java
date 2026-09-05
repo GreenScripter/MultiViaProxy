@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 package net.raphimc.viaproxy.proxy.packethandler;
 
 import io.netty.channel.ChannelFutureListener;
-import net.raphimc.netminecraft.packet.IPacket;
+import net.raphimc.netminecraft.packet.Packet;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
 
 import java.util.List;
@@ -31,11 +31,11 @@ public abstract class PacketHandler {
         this.proxyConnection = proxyConnection;
     }
 
-    public boolean handleC2P(final IPacket packet, final List<ChannelFutureListener> listeners) throws Exception {
+    public boolean handleC2P(final Packet packet, final List<ChannelFutureListener> listeners) throws Exception {
         return true;
     }
 
-    public boolean handleP2S(final IPacket packet, final List<ChannelFutureListener> listeners) throws Exception {
+    public boolean handleP2S(final Packet packet, final List<ChannelFutureListener> listeners) throws Exception {
         return true;
     }
 

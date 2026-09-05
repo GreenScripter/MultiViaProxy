@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ public class SpawnPositionTracker extends StoredObject {
     }
 
     public void sendSpawnPosition() {
-        final PacketWrapper setDefaultSpawnPosition = PacketWrapper.create(ClientboundPackets1_18.SET_DEFAULT_SPAWN_POSITION, this.getUser());
+        final PacketWrapper setDefaultSpawnPosition = PacketWrapper.create(ClientboundPackets1_18.SET_DEFAULT_SPAWN_POSITION, this.user());
         setDefaultSpawnPosition.write(Types.BLOCK_POSITION1_14, this.spawnPosition); // position
         setDefaultSpawnPosition.write(Types.FLOAT, this.angle); // angle
         setDefaultSpawnPosition.send(Protocol1_18To1_18_2.class);

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@ package net.raphimc.viaproxy.proxy.packethandler;
 
 import io.netty.channel.ChannelFutureListener;
 import net.raphimc.netminecraft.constants.ConnectionState;
-import net.raphimc.netminecraft.packet.IPacket;
+import net.raphimc.netminecraft.packet.Packet;
 import net.raphimc.viaproxy.proxy.session.ProxyConnection;
 
 import java.util.List;
@@ -31,7 +31,7 @@ public class UnexpectedPacketHandler extends PacketHandler {
     }
 
     @Override
-    public boolean handleC2P(IPacket packet, List<ChannelFutureListener> listeners) {
+    public boolean handleC2P(Packet packet, List<ChannelFutureListener> listeners) {
         final ConnectionState connectionState = this.proxyConnection.getC2pConnectionState();
         if (connectionState.equals(ConnectionState.HANDSHAKING)) {
             throw new IllegalStateException("Unexpected packet in " + connectionState + " state");

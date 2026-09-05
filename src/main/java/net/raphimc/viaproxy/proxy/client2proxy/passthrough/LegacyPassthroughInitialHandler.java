@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,9 +46,10 @@ public class LegacyPassthroughInitialHandler extends SimpleChannelInboundHandler
             final PassthroughClient2ProxyChannelInitializer channelInitializer = new PassthroughClient2ProxyChannelInitializer(handlerSupplier);
             ctx.channel().pipeline().addLast(channelInitializer);
             ctx.channel().pipeline().fireChannelActive();
+            ctx.pipeline().fireChannelRead(msg.retain());
+        } else {
+            ctx.fireChannelRead(msg.retain());
         }
-
-        ctx.pipeline().fireChannelRead(msg.retain());
     }
 
     @Override

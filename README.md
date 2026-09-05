@@ -9,17 +9,19 @@ Using it is very simple, just run the jar file, and it will start a user interfa
 For a full user guide go to the [Usage for Players](#usage-for-players-gui) section or the [Usage for Server Owners](#usage-for-server-owners-config) section.
 
 ## Supported Server versions
-- Release (1.0.0 - 1.21.1)
+- Release (1.0.0 - 26.2)
 - Beta (b1.0 - b1.8.1)
 - Alpha (a1.0.15 - a1.2.6)
 - Classic (c0.0.15 - c0.30 including [CPE](https://wiki.vg/Classic_Protocol_Extension))
-- April Fools (3D Shareware, 20w14infinite)
+- April Fools (3D Shareware, 20w14infinite, 25w14craftmine)
 - Combat Snapshots (Combat Test 8c)
-- Bedrock Edition 1.21.20 ([Some features are missing](https://github.com/RaphiMC/ViaBedrock#features))
+- Bedrock Edition 1.26.30 (WIP, [Many features are missing](https://github.com/RaphiMC/ViaBedrock#features))
 
 ## Supported Client versions
-- Release (1.7.2 - 1.21.1)
-- Bedrock Edition (Needs the [Geyser plugin](https://geysermc.org/download))
+- Release (1.7.2 - 26.2)
+- April Fools (3D Shareware, 25w14craftmine)
+- Bedrock Edition (Requires the [Geyser plugin](https://geysermc.org/download))
+- Beta 1.7.3 (Requires the [Beta2Release plugin](https://github.com/ViaVersionAddons/ViaProxyBeta2Release))
 - Classic, Alpha, Beta, Release 1.0 - 1.6.4 (Only passthrough)
 
 ViaProxy supports joining to any of the listed server version from any of the listed client versions.
@@ -33,7 +35,7 @@ ViaProxy supports joining to any of the listed server version from any of the li
 
 ## Releases
 ### Executable Jar File
-If you want the executable jar file you can download a stable release from [GitHub Releases](https://github.com/ViaVersion/ViaProxy/releases/latest) or the latest dev version from [GitHub Actions](https://github.com/RaphiMC/ViaProxy/actions/workflows/build.yml) or the [ViaVersion Jenkins](https://ci.viaversion.com/view/All/job/ViaProxy/).
+If you want the executable jar file you can download a stable release from [GitHub Releases](https://github.com/ViaVersion/ViaProxy/releases/latest) or the latest dev version from [GitHub Actions](https://github.com/RaphiMC/ViaProxy/actions/workflows/build.yml) or the [ViaVersion Jenkins](https://ci.viaversion.com/view/Platforms/job/ViaProxy/).
 
 ### Docker Image
 ViaProxy docker images can be found on [GitHub Packages](https://github.com/ViaVersion/ViaProxy/pkgs/container/viaproxy).
@@ -43,35 +45,6 @@ To run the latest version of ViaProxy you can use the following command:
 docker run -it -v /path/to/run:/app/run -p 25568:25568 ghcr.io/viaversion/viaproxy:latest
 ```
 where ``/path/to/run`` is the path where the ViaProxy data should be stored and ``25568`` is the port ViaProxy should listen on.
-
-### Gradle/Maven
-To use ViaProxy with Gradle/Maven you can use the ViaVersion maven server:
-```groovy
-repositories {
-    maven { url "https://repo.viaversion.com" }
-}
-
-dependencies {
-    implementation("net.raphimc:ViaProxy:x.x.x") // Get latest version from releases
-}
-```
-
-```xml
-<repositories>
-    <repository>
-        <id>viaversion</id>
-        <url>https://repo.viaversion.com</url>
-    </repository>
-</repositories>
-
-<dependencies>
-    <dependency>
-        <groupId>net.raphimc</groupId>
-        <artifactId>ViaProxy</artifactId>
-        <version>x.x.x</version> <!-- Get latest version from releases -->
-    </dependency>
-</dependencies>
-```
 
 ## Usage for Players (GUI)
 ![ViaProxy GUI](https://i.imgur.com/RaDWkbK.png)
@@ -113,12 +86,9 @@ You will find 5 config files there:
 - viabedrock.yml (ViaBedrock)
 
 ### Developer Plugin API
-ViaProxy has a plugin API which allows you to create plugins for ViaProxy.  
-Documentation and examples:
-- [NoLocalConnections](https://github.com/ViaVersionAddons/NoLocalConnections)
-- [ViaProxyMultiLaunch](https://github.com/ViaVersionAddons/ViaProxyMultiLaunch)
-- [ViaProxyGeyserPlugin](https://github.com/ViaVersionAddons/ViaProxyGeyserPlugin)
-- [ViaProxyRakNetProviders](https://github.com/ViaVersionAddons/ViaProxyRakNetProviders)
+ViaProxy has a plugin API which allows you to extend and modify the behavior of ViaProxy.  
+Documentation for the plugin API can be found [here](https://github.com/ViaVersion/ViaProxy/wiki/Creating-plugins).  
+A list of plugins can be found [here](https://github.com/ViaVersion/ViaProxy/wiki/Plugins).
 
 ## Contributing
 Contributions in the form of pull requests are always welcome.
@@ -126,9 +96,7 @@ Please make sure to keep your code style consistent with the rest of the project
 If you plan to make a large scale changes, please open an issue first or join my discord to discuss it.
 
 ### Translations
-If you want to help translating ViaProxy you can do so by creating a pull request with your language file.
-The language files are located in the [language folder](/src/main/resources/assets/viaproxy/language).
-You can find the guidelines for creating a language file in the [en_US](/src/main/resources/assets/viaproxy/language/en_US.properties) language file.
+If you want to help translating ViaProxy you can do so on [Crowdin](https://crowdin.com/project/viaproxy).
 
 ## Contact
 If you encounter any issues, please report them on the

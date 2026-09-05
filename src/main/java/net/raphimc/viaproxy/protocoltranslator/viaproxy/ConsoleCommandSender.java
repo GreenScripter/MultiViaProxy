@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ package net.raphimc.viaproxy.protocoltranslator.viaproxy;
 
 import com.viaversion.viaversion.api.Via;
 import com.viaversion.viaversion.api.command.ViaCommandSender;
+import net.raphimc.viaproxy.cli.ConsoleFormatter;
 
 import java.util.UUID;
 
@@ -33,7 +34,7 @@ public class ConsoleCommandSender implements ViaCommandSender {
 
     @Override
     public void sendMessage(String msg) {
-        Via.getPlatform().sendMessage(null, msg);
+        Via.getPlatform().getLogger().info(ConsoleFormatter.convert(msg));
     }
 
     @Override

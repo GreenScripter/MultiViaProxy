@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.concurrent.ExecutionException;
 
 import static net.raphimc.viaproxy.ui.ViaProxyWindow.BODY_BLOCK_PADDING;
 import static net.raphimc.viaproxy.ui.ViaProxyWindow.BORDER_PADDING;
@@ -181,16 +182,18 @@ public class AdvancedTab extends UITab {
                     this.uploadLogsButton.setEnabled(false);
                     final MclogsClient mclogsClient = new MclogsClient("ViaProxy", ViaProxy.VERSION);
                     final UploadLogResponse apiResponse = mclogsClient.uploadLog(logFile.toPath()).get();
-                    if (apiResponse.isSuccess()) {
-                        ViaProxyWindow.openURL(apiResponse.getUrl());
-                        final StringSelection selection = new StringSelection(apiResponse.getUrl());
-                        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
-                        ViaProxyWindow.showInfo("<html>" + I18n.get("tab.advanced.upload_latest_log.success", "<a href=\"\">" + apiResponse.getUrl() + "</a>") + "</html>");
+
+                    ViaProxyWindow.openURL(apiResponse.getUrl());
+                    final StringSelection selection = new StringSelection(apiResponse.getUrl());
+                    Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+                    ViaProxyWindow.showInfo("<html>" + I18n.get("tab.advanced.upload_latest_log.success", "<a href=\"\">" + apiResponse.getUrl() + "</a>") + "</html>");
+                } catch (ExecutionException e) {
+                    if (e.getCause() instanceof FileNotFoundException) {
+                        ViaProxyWindow.showError(I18n.get("tab.advanced.upload_latest_log.error_not_found"));
                     } else {
-                        ViaProxyWindow.showError(I18n.get("tab.advanced.upload_latest_log.error_generic", apiResponse.getError()));
+                        Logger.LOGGER.error("Failed to upload log file", e.getCause());
+                        ViaProxyWindow.showError(I18n.get("tab.advanced.upload_latest_log.error_generic", e.getCause().getMessage()));
                     }
-                } catch (FileNotFoundException e) {
-                    ViaProxyWindow.showError(I18n.get("tab.advanced.upload_latest_log.error_not_found"));
                 } catch (Throwable e) {
                     Logger.LOGGER.error("Failed to upload log file", e);
                     ViaProxyWindow.showError(I18n.get("tab.advanced.upload_latest_log.error_generic", e.getMessage()));

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,10 @@ public class SplashScreen extends JFrame {
     public SplashScreen() throws IOException {
         this.setAlwaysOnTop(true);
         this.setUndecorated(true);
-        this.setBackground(new Color(0, 0, 0, 0));
+        try {
+            this.setBackground(new Color(0, 0, 0, 0));
+        } catch (UnsupportedOperationException ignored) { // https://github.com/ViaVersion/ViaProxy/issues/562
+        }
         this.setType(Window.Type.UTILITY);
         this.setSize(300, 235);
         this.setLocationRelativeTo(null);

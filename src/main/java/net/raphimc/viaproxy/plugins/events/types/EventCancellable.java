@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,10 +17,13 @@
  */
 package net.raphimc.viaproxy.plugins.events.types;
 
-public abstract class EventCancellable {
+import net.lenni0451.lambdaevents.types.ICancellableEvent;
+
+public abstract class EventCancellable implements ICancellableEvent {
 
     private boolean cancelled = false;
 
+    @Override
     public boolean isCancelled() {
         return this.cancelled;
     }

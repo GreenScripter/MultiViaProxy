@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,10 +24,7 @@ import net.raphimc.netminecraft.constants.MCPipeline;
 public class ViaProxyCompressionProvider extends CompressionProvider {
 
     @Override
-    public void handlePlayCompression(UserConnection user, int threshold) {
-        if (!user.isClientSide()) {
-            throw new IllegalStateException("PLAY state Compression packet is unsupported");
-        }
+    public void handlePlayCompression(final UserConnection user, final int threshold) {
         user.getChannel().attr(MCPipeline.COMPRESSION_THRESHOLD_ATTRIBUTE_KEY).set(threshold);
     }
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,11 +17,11 @@
  */
 package net.raphimc.viaproxy.protocoltranslator.providers;
 
-import com.mojang.authlib.Agent;
 import com.mojang.authlib.ProfileLookupCallback;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.yggdrasil.ProfileNotFoundException;
-import net.raphimc.vialegacy.protocol.release.r1_7_6_10tor1_8.model.GameProfile;
+import com.mojang.authlib.yggdrasil.ProfileResult;
+import com.viaversion.viaversion.api.minecraft.GameProfile;
 import net.raphimc.vialegacy.protocol.release.r1_7_6_10tor1_8.provider.GameProfileFetcher;
 import net.raphimc.viaproxy.proxy.external_interface.AuthLibServices;
 
@@ -33,17 +33,17 @@ import java.util.concurrent.ExecutionException;
 public class ViaProxyGameProfileFetcher extends GameProfileFetcher {
 
     @Override
-    public UUID loadMojangUUID(String playerName) throws ExecutionException, InterruptedException {
+    public UUID loadMojangUuid(final String playerName) throws ExecutionException, InterruptedException {
         final CompletableFuture<com.mojang.authlib.GameProfile> future = new CompletableFuture<>();
-        AuthLibServices.PROFILE_REPOSITORY.findProfilesByNames(new String[]{playerName}, Agent.MINECRAFT, new ProfileLookupCallback() {
+        AuthLibServices.PROFILE_REPOSITORY.findProfilesByNames(new String[]{playerName}, new ProfileLookupCallback() {
             @Override
-            public void onProfileLookupSucceeded(com.mojang.authlib.GameProfile gameProfile) {
+            public void onProfileLookupSucceeded(final com.mojang.authlib.GameProfile gameProfile) {
                 future.complete(gameProfile);
             }
 
             @Override
-            public void onProfileLookupFailed(com.mojang.authlib.GameProfile gameProfile, Exception e) {
-                future.completeExceptionally(e);
+            public void onProfileLookupFailed(final String profileName, final Exception exception) {
+                future.completeExceptionally(exception);
             }
         });
         if (!future.isDone()) {
@@ -53,17 +53,19 @@ public class ViaProxyGameProfileFetcher extends GameProfileFetcher {
     }
 
     @Override
-    public GameProfile loadGameProfile(UUID uuid) {
-        final com.mojang.authlib.GameProfile inProfile = new com.mojang.authlib.GameProfile(uuid, null);
-        final com.mojang.authlib.GameProfile mojangProfile = AuthLibServices.SESSION_SERVICE.fillProfileProperties(inProfile, true);
-        if (mojangProfile.equals(inProfile)) throw new ProfileNotFoundException();
-
-        final GameProfile gameProfile = new GameProfile(mojangProfile.getName(), mojangProfile.getId());
-        for (Map.Entry<String, Property> entry : mojangProfile.getProperties().entries()) {
-            final Property prop = entry.getValue();
-            gameProfile.addProperty(new GameProfile.Property(prop.getName(), prop.getValue(), prop.getSignature()));
+    public GameProfile loadGameProfile(final UUID uuid) {
+        final ProfileResult result = AuthLibServices.SESSION_SERVICE.fetchProfile(uuid, true);
+        if (result == null) {
+            throw new ProfileNotFoundException();
         }
-        return gameProfile;
+
+        final com.mojang.authlib.GameProfile gameProfile = result.profile();
+        final GameProfile.Property[] properties = new GameProfile.Property[gameProfile.getProperties().size()];
+        int i = 0;
+        for (Map.Entry<String, Property> entry : gameProfile.getProperties().entries()) {
+            properties[i++] = new GameProfile.Property(entry.getValue().name(), entry.getValue().value(), entry.getValue().signature());
+        }
+        return new GameProfile(gameProfile.getName(), gameProfile.getId(), properties);
     }
 
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -124,7 +124,11 @@ public class ViaProxyWindow extends JFrame {
 
     public static void openURL(final String url) {
         try {
-            Desktop.getDesktop().browse(new URI(url));
+            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                Desktop.getDesktop().browse(new URI(url));
+            } else {
+                new ProcessBuilder("xdg-open", url).start();
+            }
         } catch (Throwable t) {
             showInfo(I18n.get("generic.could_not_open_url", url));
         }

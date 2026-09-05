@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.*;
@@ -115,15 +114,6 @@ public abstract class MixinBlockItemPacketRewriter1_20_5 extends ItemRewriter<Cl
         }, ViaLoadingEvent.class);
     }
 
-    @Redirect(method = "appendItemDataFixComponents", at = @At(value = "INVOKE", target = "Lcom/viaversion/viaversion/api/protocol/version/ProtocolVersion;olderThanOrEqualTo(Lcom/viaversion/viaversion/api/protocol/version/ProtocolVersion;)Z"))
-    private boolean changeSwordFixVersionRange(ProtocolVersion instance, ProtocolVersion other) {
-        if (other == ProtocolVersion.v1_8) {
-            return instance.betweenInclusive(LegacyProtocolVersion.b1_8tob1_8_1, ProtocolVersion.v1_8);
-        } else {
-            return instance.olderThanOrEqualTo(other);
-        }
-    }
-
     @Inject(method = "appendItemDataFixComponents", at = @At("RETURN"))
     private void appendItemDataFixComponents(UserConnection user, Item item, CallbackInfo ci) {
         final StructuredDataContainer data = item.dataContainer();
@@ -138,7 +128,7 @@ public abstract class MixinBlockItemPacketRewriter1_20_5 extends ItemRewriter<Cl
         if (user.getProtocolInfo().serverProtocolVersion().olderThanOrEqualTo(LegacyProtocolVersion.b1_7tob1_7_3)) {
             if (this.foodItems_b1_7_3.contains(identifier)) {
                 data.set(StructuredDataKey.MAX_STACK_SIZE, 1);
-//                data.addEmpty(StructuredDataKey.FOOD1_20_5);
+                data.setEmpty(StructuredDataKey.FOOD1_20_5);
             }
         }
 
@@ -146,7 +136,7 @@ public abstract class MixinBlockItemPacketRewriter1_20_5 extends ItemRewriter<Cl
             if (user.getProtocolInfo().serverProtocolVersion().olderThanOrEqualTo(entry.getKey())) {
                 final ToolProperties toolProperties = entry.getValue().get(identifier);
                 if (toolProperties != null) {
-                    data.set(StructuredDataKey.TOOL, toolProperties);
+                    data.set(StructuredDataKey.TOOL1_20_5, toolProperties);
                     break;
                 }
             }
@@ -156,7 +146,7 @@ public abstract class MixinBlockItemPacketRewriter1_20_5 extends ItemRewriter<Cl
     @Unique
     private int[] blockJsonArrayToIds(final ProtocolVersion protocolVersion, final JsonArray jsonArray) {
         final IntSet ids = new IntOpenHashSet();
-        for (final JsonElement element : jsonArray) {
+        for (JsonElement element : jsonArray) {
             final String name = element.getAsString();
             if (name.startsWith("#")) { // Material name
                 final String material = name.substring(1);

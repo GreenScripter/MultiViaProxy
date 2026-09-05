@@ -1,6 +1,6 @@
 /*
  * This file is part of ViaProxy - https://github.com/RaphiMC/ViaProxy
- * Copyright (C) 2021-2024 RK_01/RaphiMC and contributors
+ * Copyright (C) 2021-2026 RK_01/RaphiMC and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ package net.raphimc.viaproxy.plugins.events;
 import com.google.common.net.HostAndPort;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import io.netty.channel.Channel;
+import net.raphimc.netminecraft.constants.IntendedState;
 import net.raphimc.viaproxy.plugins.events.types.EventCancellable;
 
 import java.net.SocketAddress;
@@ -30,15 +31,17 @@ public class PreConnectEvent extends EventCancellable {
     private ProtocolVersion serverVersion;
     private final ProtocolVersion clientVersion;
     private final HostAndPort clientHandshakeAddress;
+    private final IntendedState intendedState;
     private final Channel clientChannel;
 
     private String cancelMessage = "§cCould not connect to the backend server! (Server is blacklisted)";
 
-    public PreConnectEvent(final SocketAddress serverAddress, final ProtocolVersion serverVersion, final ProtocolVersion clientVersion, final HostAndPort clientHandshakeAddress, final Channel clientChannel) {
+    public PreConnectEvent(final SocketAddress serverAddress, final ProtocolVersion serverVersion, final ProtocolVersion clientVersion, final HostAndPort clientHandshakeAddress, final IntendedState intendedState, final Channel clientChannel) {
         this.serverAddress = serverAddress;
         this.serverVersion = serverVersion;
         this.clientVersion = clientVersion;
         this.clientHandshakeAddress = clientHandshakeAddress;
+        this.intendedState = intendedState;
         this.clientChannel = clientChannel;
     }
 
@@ -64,6 +67,10 @@ public class PreConnectEvent extends EventCancellable {
 
     public HostAndPort getClientHandshakeAddress() {
         return this.clientHandshakeAddress;
+    }
+
+    public IntendedState getIntendedState() {
+        return this.intendedState;
     }
 
     public Channel getClientChannel() {
